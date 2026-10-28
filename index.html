@@ -1,100 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Money Singh — Full-Stack Developer</title>
-  <meta name="description" content="Money Singh — Full-Stack Developer. Book me for your next project." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Singh - 3D Portfolio Showcase</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- WebGL canvas (fixed background, receives drag / click) -->
-  <canvas id="stage"></canvas>
-  <div class="grid-bg"></div>
 
-  <header class="nav">
-    <a class="logo" href="#hero">MS<span>.</span></a>
-    <nav>
-      <a href="#about">About</a>
-      <a href="#skills">Skills</a>
-      <a href="#projects">Work</a>
-      <a href="#contact" class="btn-mini">Hire Me</a>
-    </nav>
-  </header>
+    <!-- Background 3D Canvas Container -->
+    <div id="webgl-container"></div>
 
-  <!-- HERO -->
-  <section id="hero" class="hero">
-    <div class="hero-text">
-      <p class="eyebrow">// Full-Stack Developer</p>
-      <h1 data-split>MONEY<br>SINGH</h1>
-      <p class="sub">I build fast, immersive, <b>3D-ready</b> web experiences.<br>Available for freelance bookings.</p>
-      <div class="cta">
-        <a href="#contact" class="btn">Book Me</a>
-        <a href="#projects" class="btn ghost">View Work</a>
-      </div>
-    </div>
-    <p class="hint">Drag to rotate · Click the card to zoom</p>
-  </section>
+    <!-- UI Overlay Header -->
+    <header class="header">
+        <div class="logo">MONEY SINGH <span class="dot">.</span></div>
+        <nav class="nav-links">
+            <a href="#about">TECH SPECS</a>
+            <a href="#interactive">360° VIEW</a>
+            <a href="#contact" class="highlight-btn">+91 8219693695</a>
+        </nav>
+    </header>
 
-  <!-- ABOUT -->
-  <section id="about" class="panel-wrap">
-    <div class="panel reveal">
-      <h2>About</h2>
-      <p>I'm Money Singh, a full-stack developer who turns ideas into polished, high-performance products — from pixel-perfect interfaces and WebGL experiences to robust APIs and databases.</p>
-      <div class="stats">
-        <div><b data-count="30">0</b><span>Projects</span></div>
-        <div><b data-count="3">0</b><span>Years Exp.</span></div>
-        <div><b data-count="100">0</b><span>% Dedication</span></div>
-      </div>
-    </div>
-  </section>
+    <!-- Main Hero Section / Overlay Details -->
+    <main class="hero-content">
+        <div class="text-block">
+            <span class="badge">NEXT-GEN DEVELOPER PORTFOLIO</span>
+            <h1 class="glitch-title">PRECISION <br><span>DESIGN</span></h1>
+            <p class="subtitle">Interactive 3D Web Experiences, Full-Stack Architecture, and Mobile Automation Expert.</p>
+        </div>
 
-  <!-- SKILLS -->
-  <section id="skills" class="panel-wrap">
-    <div class="panel reveal">
-      <h2>Skills</h2>
-      <div class="chips">
-        <span>HTML5</span><span>CSS3</span><span>JavaScript</span><span>React</span>
-        <span>Node.js</span><span>Express</span><span>MongoDB</span><span>Three.js</span>
-        <span>GSAP</span><span>REST APIs</span><span>Git</span><span>Responsive UI</span>
-      </div>
-    </div>
-  </section>
+        <!-- Interactive Spec Cards resembling Puma/BMW layout -->
+        <div class="specs-grid">
+            <div class="spec-card">
+                <h3>360° INTERACTIVE</h3>
+                <p>Click & Drag to rotate card. Click to Zoom.</p>
+            </div>
+            <div class="spec-card">
+                <h3>TECH STACK</h3>
+                <p>Node.js, HTML5, CSS3, JavaScript, Three.js</p>
+            </div>
+        </div>
+    </main>
 
-  <!-- PROJECTS (edit titles/descriptions) -->
-  <section id="projects" class="panel-wrap">
-    <div class="panel reveal">
-      <h2>Project Highlights</h2>
-      <div class="cards">
-        <article class="card"><h3>E-Commerce Platform</h3><p>Full-stack store with cart, payments and admin dashboard.</p></article>
-        <article class="card"><h3>3D Product Showcase</h3><p>Interactive WebGL configurator with cinematic camera moves.</p></article>
-        <article class="card"><h3>Booking System</h3><p>Real-time scheduling app with secure authentication.</p></article>
-      </div>
-    </div>
-  </section>
+    <!-- Footer / Contact Floating Bar -->
+    <footer class="footer-bar">
+        <div class="contact-pill">
+            <span>DIRECT LINE:</span>
+            <a href="tel:+918219693695" class="phone-glow">+91 8219693695</a>
+        </div>
+    </footer>
 
-  <!-- CONTACT -->
-  <section id="contact" class="panel-wrap contact">
-    <div class="panel reveal">
-      <p class="eyebrow">// Let's build something</p>
-      <h2>Book a Developer</h2>
-      <a class="phone" href="tel:+918219693695" aria-label="Call +91 8219693695" data-phone>+91 8219693695</a>
-      <div class="cta center">
-        <a class="btn" href="tel:+918219693695">Call Now</a>
-        <a class="btn ghost" target="_blank" rel="noopener"
-           href="https://wa.me/918219693695?text=Hi%20Money%2C%20I%20want%20to%20book%20you%20for%20a%20project.">WhatsApp</a>
-      </div>
-    </div>
-    <footer>© 2026 Money Singh. All rights reserved.</footer>
-  </section>
-
-  <!-- CDN: Three.js r128, OrbitControls, GSAP -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="main.js"></script>
+    <!-- CDN Libraries: Three.js, OrbitControls, GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
