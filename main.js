@@ -1,356 +1,131 @@
-/* =========================================================
-   MONEY SINGH — 3D PORTFOLIO
-   Three.js r128 + OrbitControls + GSAP
-   Replace "logo.jpg" below with your own photo file.
-   ========================================================= */
+// --- Three.js 3D Showcase Scene Setup ---
+const container = document.getElementById('webgl-container');
 
-const PHOTO_SRC = "logo.jpg"; // <-- put your photo in this folder with this name
-
-/* ---------- Scene / Camera / Renderer ---------- */
-const canvas = document.getElementById("stage");
+// Scene, Camera, Renderer
 const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050505, 0.03);
 
-const camera = new THREE.PerspectiveCamera(
-  45,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  100
-);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 0, 7);
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+container.appendChild(renderer.domElement);
 
-/* ---------- Lighting (cyberpunk cyan/pink rim light) ---------- */
-scene.add(new THREE.AmbientLight(0x8899ff, 0.5));
-
-const keyLight = new THREE.PointLight(0x00f0ff, 2.2, 20);
-keyLight.position.set(3, 2, 4);
-scene.add(keyLight);
-
-const rimLight = new THREE.PointLight(0xff2bd6, 2.4, 20);
-rimLight.position.set(-3, -1.5, -3);
-scene.add(rimLight);
-
-const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
-fillLight.position.set(0, 4, 5);
-scene.add(fillLight);
-
-/* ---------- Floating glass-framed photo card ---------- */
-const group = new THREE.Group();
-scene.add(group);
-
-const loader = new THREE.TextureLoader();
-const cardGeo = new THREE.PlaneGeometry(3, 3.9, 32, 32);
-
-// Fallback gradient texture shown instantly while the real photo loads
-const fallbackCanvas = document.createElement("canvas");
-fallbackCanvas.width = fallbackCanvas.height = 8;
-const fctx = fallbackCanvas.getContext("2d");
-const grad = fctx.createLinearGradient(0, 0, 8, 8);
-grad.addColorStop(0, "#0a1c2e");
-grad.addColorStop(1, "#1a0a2e");
-fctx.fillStyle = grad;
-fctx.fillRect(0, 0, 8, 8);
-const fallbackTexture = new THREE.CanvasTexture(fallbackCanvas);
-
-const cardMat = new THREE.MeshPhysicalMaterial({
-  map: fallbackTexture,
-  roughness: 0.18,
-  metalness: 0.1,
-  clearcoat: 1,
-  clearcoatRoughness: 0.12,
-  transmission: 0.05,
-  reflectivity: 0.6,
-  emissive: 0x001820,
-  emissiveIntensity: 0.25,
-  side: THREE.DoubleSide,
-});
-
-const card = new THREE.Mesh(cardGeo, cardMat);
-group.add(card);
-
-loader.load(
-  PHOTO_SRC,
-  (tex) => {
-    tex.encoding = THREE.sRGBEncoding;
-    // Fit image without stretching: adjust plane aspect to the image
-    const imgAspect = tex.image.width / tex.image.height;
-    const targetH = 3.9;
-    const targetW = targetH * imgAspect;
-    card.geometry.dispose();
-    card.geometry = new THREE.PlaneGeometry(
-      Math.min(targetW, 3.6),
-      targetH,
-      32,
-      32
-    );
-    cardMat.map = tex;
-    cardMat.emissiveIntensity = 0.08;
-    cardMat.needsUpdate = true;
-  },
-  undefined,
-  () => console.warn("Photo not found: place your file as", PHOTO_SRC)
-);
-
-// Glowing glass edge frame (slightly larger, translucent, emissive border look)
-const frameGeo = new THREE.PlaneGeometry(3.18, 4.08);
-const frameMat = new THREE.MeshBasicMaterial({
-  color: 0x00f0ff,
-  transparent: true,
-  opacity: 0.12,
-  side: THREE.DoubleSide,
-});
-const frame = new THREE.Mesh(frameGeo, frameMat);
-frame.position.z = -0.03;
-group.add(frame);
-
-// Thin neon outline using edges geometry
-const outlineGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(3.18, 4.08));
-const outlineMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.8 });
-const outline = new THREE.LineSegments(outlineGeo, outlineMat);
-outline.position.z = -0.02;
-group.add(outline);
-
-// Soft backlight glow sprite behind the card
-const glowTex = (() => {
-  const c = document.createElement("canvas");
-  c.width = c.height = 256;
-  const ctx = c.getContext("2d");
-  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  g.addColorStop(0, "rgba(0,240,255,0.55)");
-  g.addColorStop(1, "rgba(0,240,255,0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 256);
-  return new THREE.CanvasTexture(c);
-})();
-const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false }));
-glow.scale.set(7, 7, 1);
-glow.position.z = -1.2;
-group.add(glow);
-
-/* ---------- Floating particles (ambient tech dust) ---------- */
-const particleCount = 220;
-const particleGeo = new THREE.BufferGeometry();
-const positions = new Float32Array(particleCount * 3);
-for (let i = 0; i < particleCount; i++) {
-  positions[i * 3] = (Math.random() - 0.5) * 20;
-  positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
-  positions[i * 3 + 2] = (Math.random() - 0.5) * 12 - 2;
-}
-particleGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-const particleMat = new THREE.PointsMaterial({
-  color: 0x66e0ff,
-  size: 0.025,
-  transparent: true,
-  opacity: 0.6,
-});
-const particles = new THREE.Points(particleGeo, particleMat);
-scene.add(particles);
-
-/* ---------- OrbitControls (drag to rotate, like a product showcase) ---------- */
+// Orbit Controls for smooth 360 rotation & inspection
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.enablePan = false;
-controls.enableZoom = false;
-controls.minPolarAngle = Math.PI / 2 - 0.6;
-controls.maxPolarAngle = Math.PI / 2 + 0.6;
-controls.minAzimuthAngle = -Math.PI / 2.2;
-controls.maxAzimuthAngle = Math.PI / 2.2;
-controls.rotateSpeed = 0.6;
-controls.target.set(0, 0, 0);
+controls.dampingFactor = 0.05;
+controls.maxDistance = 10;
+controls.minDistance = 3;
 
-let userInteracting = false;
-controls.addEventListener("start", () => (userInteracting = true));
-controls.addEventListener("end", () => {
-  // resume auto-rotation shortly after the user lets go
-  setTimeout(() => (userInteracting = false), 1200);
-});
+// --- Cinematic Lighting (BMW / Puma style spotlight effects) ---
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+scene.add(ambientLight);
 
-/* ---------- Click-to-zoom (cinematic GSAP camera move) ---------- */
-let zoomed = false;
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-const defaultCamPos = camera.position.clone();
+const spotlight1 = new THREE.SpotLight(0x00ffcc, 5);
+spotlight1.position.set(5, 5, 5);
+spotlight1.angle = Math.PI / 4;
+scene.add(spotlight1);
 
-function setPointer(e) {
-  const t = e.touches ? e.touches[0] : e;
-  pointer.x = (t.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = -(t.clientY / window.innerHeight) * 2 + 1;
-}
+const spotlight2 = new THREE.SpotLight(0x3366ff, 3);
+spotlight2.position.set(-5, -3, 4);
+scene.add(spotlight2);
 
-function handleTap(e) {
-  setPointer(e);
-  raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObject(card);
-  if (!hits.length) return;
+// --- Centerpiece: Interactive 3D Card / Frame (Developer Photo Display) ---
+const geometry = new THREE.BoxGeometry(2.2, 3, 0.15);
 
-  zoomed = !zoomed;
+// Creating a sleek canvas texture as placeholder for developer photo/card design
+const canvasTex = document.createElement('canvas');
+canvasTex.width = 512;
+canvasTex.height = 768;
+const ctx = canvasTex.getContext('2d');
 
-  if (zoomed) {
-    gsap.to(camera.position, { x: 0, y: 0, z: 3.4, duration: 1.1, ease: "power3.inOut" });
-    gsap.to(keyLight, { intensity: 3.4, duration: 1.1, ease: "power3.inOut" });
-    gsap.to(rimLight, { intensity: 3.6, duration: 1.1, ease: "power3.inOut" });
-    gsap.to(cardMat, { emissiveIntensity: 0.45, duration: 1.1 });
-    controls.enableZoom = false;
-  } else {
+// Draw stylish card face design
+ctx.fillStyle = '#0f1015';
+ctx.fillRect(0, 0, 512, 768);
+ctx.strokeStyle = '#00ffcc';
+ctx.lineWidth = 8;
+ctx.strokeRect(15, 15, 482, 738);
+
+ctx.fillStyle = '#ffffff';
+ctx.font = 'bold 36px "Space Grotesk", sans-serif';
+ctx.fillText('MONEY SINGH', 50, 100);
+
+ctx.fillStyle = '#00ffcc';
+ctx.font = '20px sans-serif';
+ctx.fillText('FULL-STACK & 3D DEV', 50, 140);
+
+// Placeholder silhouette graphic for developer photo zone
+ctx.fillStyle = '#1a1c23';
+ctx.fillRect(50, 180, 412, 450);
+ctx.fillStyle = '#555';
+ctx.font = '24px sans-serif';
+ctx.fillText('[ DEVELOPER PHOTO ]', 120, 410);
+
+const texture = new THREE.CanvasTexture(canvasTex);
+
+const material = [
+    new THREE.MeshStandardMaterial({ color: 0x111111 }), // Right
+    new THREE.MeshStandardMaterial({ color: 0x111111 }), // Left
+    new THREE.MeshStandardMaterial({ color: 0x111111 }), // Top
+    new THREE.MeshStandardMaterial({ color: 0x111111 }), // Bottom
+    new THREE.MeshStandardMaterial({ map: texture, roughness: 0.2, metalness: 0.8 }), // Front (Photo Card)
+    new THREE.MeshStandardMaterial({ color: 0x1a1c23 })  // Back
+];
+
+const photoCard = new THREE.Mesh(geometry, material);
+scene.add(photoCard);
+
+// --- Continuous 360-degree rotation when idle ---
+let isUserInteracting = false;
+controls.onStart = () => { isUserInteracting = true; };
+controls.onEnd = () => { setTimeout(() => { isUserInteracting = false; }, 2000); };
+
+// --- Click to Zoom Feature (GSAP Animation) ---
+let isZoomed = window.innerWidth <= 768 ? false : false;
+
+window.addEventListener('click', (event) => {
+    // Prevent zoom if clicking UI elements
+    if(event.target.closest('.header') || event.target.closest('.hero-content') || event.target.closest('.footer-bar')) return;
+
+    isZoomed = !isZoomed;
+    
     gsap.to(camera.position, {
-      x: defaultCamPos.x,
-      y: defaultCamPos.y,
-      z: defaultCamPos.z,
-      duration: 1.1,
-      ease: "power3.inOut",
+        z: isZoomed ? 4.2 : 7,
+        y: isZoomed ? 0.5 : 0,
+        duration: 1.2,
+        ease: 'power3.inOut'
     });
-    gsap.to(keyLight, { intensity: 2.2, duration: 1.1, ease: "power3.inOut" });
-    gsap.to(rimLight, { intensity: 2.4, duration: 1.1, ease: "power3.inOut" });
-    gsap.to(cardMat, { emissiveIntensity: 0.08, duration: 1.1 });
-  }
-}
-renderer.domElement.addEventListener("click", handleTap);
-renderer.domElement.addEventListener("touchend", handleTap, { passive: true });
 
-/* ---------- Subtle pointer-follow tilt (adds "alive" feel) ---------- */
-let targetTiltX = 0, targetTiltY = 0;
-window.addEventListener("pointermove", (e) => {
-  const nx = (e.clientX / window.innerWidth) * 2 - 1;
-  const ny = (e.clientY / window.innerHeight) * 2 - 1;
-  targetTiltY = nx * 0.12;
-  targetTiltX = -ny * 0.08;
+    gsap.to(photoCard.rotation, {
+        y: isZoomed ? photoCard.rotation.y + Math.PI * 2 : photoCard.rotation.y,
+        duration: 1.5,
+        ease: 'power2.out'
+    });
 });
 
-/* ---------- Animate ---------- */
-const clock = new THREE.Clock();
-
+// --- Render Loop ---
 function animate() {
-  requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
+    requestAnimationFrame(animate);
 
-  // Continuous Puma/BMW-style slow auto-rotation when the user isn't dragging
-  if (!userInteracting && !zoomed) {
-    group.rotation.y += 0.0032;
-  }
+    // Auto rotate slowly if user is not actively dragging
+    if (!isUserInteracting && !isZoomed) {
+        photoCard.rotation.y += 0.005;
+        photoCard.rotation.x = Math.sin(Date.now() * 0.001) * 0.1;
+    }
 
-  // Gentle float + mouse-follow tilt
-  group.position.y = Math.sin(t * 0.8) * 0.12;
-  group.rotation.x += (targetTiltX - group.rotation.x) * 0.04;
-  if (!userInteracting) {
-    group.rotation.z += (targetTiltY * 0.3 - group.rotation.z) * 0.04;
-  }
-
-  // Drifting particles
-  particles.rotation.y = t * 0.02;
-
-  // Pulse the rim/key lights slightly for a "living" neon feel
-  keyLight.intensity = (zoomed ? 3.4 : 2.2) + Math.sin(t * 2) * 0.15;
-  rimLight.intensity = (zoomed ? 3.6 : 2.4) + Math.cos(t * 1.6) * 0.15;
-
-  controls.update();
-  renderer.render(scene, camera);
+    controls.update();
+    renderer.render(scene, camera);
 }
+
 animate();
 
-/* ---------- Resize ---------- */
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-/* =========================================================
-   UI: scroll reveals, counters, split-text hero, kinetic phone
-   ========================================================= */
-
-/* Split the H1 into per-letter spans for a staggered entrance */
-(function splitHeroTitle() {
-  const el = document.querySelector("[data-split]");
-  if (!el) return;
-  const text = el.textContent;
-  el.textContent = "";
-  [...text].forEach((ch, i) => {
-    const span = document.createElement("span");
-    span.className = "ch";
-    span.textContent = ch === " " ? "\u00A0" : ch;
-    span.style.setProperty("--i", i);
-    el.appendChild(span);
-  });
-  gsap.from(el.querySelectorAll(".ch"), {
-    y: 60,
-    opacity: 0,
-    rotateX: 60,
-    duration: 0.8,
-    stagger: 0.03,
-    ease: "power4.out",
-    delay: 0.2,
-  });
-})();
-
-gsap.from(".eyebrow, .sub, .cta", {
-  y: 24,
-  opacity: 0,
-  duration: 0.8,
-  stagger: 0.12,
-  delay: 0.6,
-  ease: "power3.out",
-});
-
-/* Kinetic glowing phone number: wrap each char for a staggered glow-in + flicker */
-(function kineticPhone() {
-  const el = document.querySelector("[data-phone]");
-  if (!el) return;
-  const text = el.textContent.trim();
-  el.textContent = "";
-  [...text].forEach((ch, i) => {
-    const span = document.createElement("span");
-    span.className = "ch";
-    span.style.setProperty("--i", i);
-    span.textContent = ch === " " ? "\u00A0" : ch;
-    el.appendChild(span);
-  });
-})();
-
-/* Scroll-triggered reveal for glass panels + animated counters */
-const revealEls = document.querySelectorAll(".reveal");
-const counters = document.querySelectorAll("[data-count]");
-let countersRun = false;
-
-const io = new IntersectionObserver(
-  (entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add("in");
-
-        if (!countersRun && entry.target.contains(document.querySelector("[data-count]"))) {
-          countersRun = true;
-          counters.forEach((c) => {
-            const end = parseInt(c.dataset.count, 10);
-            gsap.to(c, {
-              innerText: end,
-              duration: 1.4,
-              ease: "power1.out",
-              snap: { innerText: 1 },
-              onUpdate() {
-                c.innerText = Math.round(c.innerText);
-              },
-            });
-          });
-        }
-      }
-    });
-  },
-  { threshold: 0.25 }
-);
-revealEls.forEach((el) => io.observe(el));
-
-/* Smooth-scroll nav links */
-document.querySelectorAll('a[href^="#"]').forEach((link) => {
-  link.addEventListener("click", (e) => {
-    const target = document.querySelector(link.getAttribute("href"));
-    if (target) {
-      e.preventDefault();
-      target.scrollIntoView({ behavior: "smooth" });
-    }
-  });
+// --- Responsive Window Resize Handling ---
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
