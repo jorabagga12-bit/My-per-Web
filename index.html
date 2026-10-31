@@ -51,79 +51,132 @@
     <!-- Connected External CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Multi-Page View & AdSense Article Styling (Keeps exact Glass UI) -->
+    <!-- Fix Scroll Blur, 3-Dot Menu & Clean Multi-Page Layout -->
     <style>
+        /* 1. Fix Scroll Blur: Once seen, stay 100% sharp & fixed on scroll up/down */
+        .reveal-up.seen:not(.active),
+        .reveal-up.active,
+        .reveal-up.seen {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+            filter: blur(0px) !important;
+        }
+
+        /* 2. Make 3-Dot/Line Menu Button Visible on All Screens for Clean Navigation */
+        .navbar .nav-links {
+            display: none !important;
+        }
+        .navbar .mobile-menu-btn {
+            display: flex !important;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            transition: all 0.25s ease;
+        }
+        .navbar .mobile-menu-btn:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: scale(1.06);
+        }
+
+        /* 3. Clean 3-Dot Menu Overlay Styling */
+        .mobile-nav-overlay {
+            gap: 12px !important;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .mobile-nav-overlay a {
+            font-size: 19px !important;
+            padding: 12px 32px !important;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }
+        .mobile-nav-overlay a.active,
+        .mobile-nav-overlay a:hover {
+            background: rgba(255, 255, 255, 0.14) !important;
+            border-color: rgba(255, 255, 255, 0.3) !important;
+        }
+
+        /* 4. Separate Page Views */
         .site-page-view {
             display: none;
-            animation: pageFadeIn 0.45s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            animation: cleanFadeIn 0.35s ease forwards;
         }
         .site-page-view.active-page {
             display: block;
         }
-        @keyframes pageFadeIn {
-            from { opacity: 0; transform: translateY(15px); }
+        @keyframes cleanFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .subpage-top-spacer {
-            padding-top: 130px;
+            padding-top: 120px;
         }
-        .policy-content-box {
-            padding: 45px;
-            line-height: 1.8;
+
+        /* 5. Clean Content Card for About & AdSense Policy */
+        .clean-doc-card {
+            padding: 40px;
+            line-height: 1.75;
             color: #d1d5db;
-            font-size: 16px;
-            margin-bottom: 30px;
+            font-size: 15px;
+            max-width: 900px;
+            margin: 0 auto 30px auto;
         }
-        .policy-content-box h3 {
+        .clean-doc-card h3 {
             color: #ffffff;
-            font-size: 24px;
-            margin-top: 28px;
-            margin-bottom: 12px;
-            letter-spacing: -0.5px;
+            font-size: 22px;
+            margin-top: 24px;
+            margin-bottom: 10px;
         }
-        .policy-content-box h3:first-child {
+        .clean-doc-card h3:first-child {
             margin-top: 0;
         }
-        .policy-content-box p {
-            margin-bottom: 16px;
+        .clean-doc-card p {
+            margin-bottom: 14px;
             color: var(--text-dim);
         }
-        .policy-content-box ul {
-            margin: 12px 0 20px 22px;
+        .clean-doc-card ul {
+            margin: 10px 0 18px 20px;
             color: var(--text-dim);
         }
-        .policy-content-box li {
-            margin-bottom: 8px;
+        .clean-doc-card li {
+            margin-bottom: 6px;
         }
-        .footer-link-btn {
-            background: none;
-            border: none;
+
+        /* 6. Minimal Bottom AdSense Bar */
+        .clean-footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            align-items: center;
+        }
+        .clean-footer-links a {
             color: var(--text-dim);
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: color 0.3s ease;
             text-decoration: none;
-            padding: 4px 8px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+            cursor: pointer;
         }
-        .footer-link-btn:hover {
+        .clean-footer-links a:hover {
             color: #ffffff;
         }
-        .back-home-bar {
-            display: flex;
-            justify-content: center;
-            margin-top: 40px;
-        }
+
         @media screen and (max-width: 768px) {
-            .policy-content-box {
-                padding: 26px 20px;
+            .clean-doc-card {
+                padding: 24px 18px;
                 font-size: 14px;
             }
-            .policy-content-box h3 {
-                font-size: 20px;
-            }
             .subpage-top-spacer {
-                padding-top: 95px;
+                padding-top: 90px;
+            }
+            .clean-footer-links {
+                justify-content: center;
+                gap: 14px;
             }
         }
     </style>
@@ -142,15 +195,16 @@
         <div class="noise-texture"></div>
     </div>
 
-    <!-- Mobile Navigation Overlay (3-Line Menu Opens Separate Pages) -->
+    <!-- 3-DOT / 3-LINE MENU OVERLAY (Opens All Separate Pages Cleanly) -->
     <div id="mobileNavOverlay" class="mobile-nav-overlay">
         <button class="mobile-nav-close" id="mobileNavClose">&times;</button>
-        <a href="#home" class="mobile-page-link active" onclick="openSitePage('page-home', this)">Home & Mani's AI</a>
-        <a href="#case-studies-page" class="mobile-page-link" onclick="openSitePage('page-solutions', this)">Services & Case Studies</a>
-        <a href="#team-page" class="mobile-page-link" onclick="openSitePage('page-team', this)">Team & FAQ</a>
-        <a href="#about-page" class="mobile-page-link" onclick="openSitePage('page-about', this)">About Us</a>
-        <a href="#privacy-page" class="mobile-page-link" onclick="openSitePage('page-privacy', this)">Privacy & Terms</a>
-        <a href="#contact-page" class="mobile-page-link" onclick="openSitePage('page-contact', this)">Contact Us</a>
+        <a href="#home" class="mobile-page-link active" onclick="openSitePage('page-home', this); return false;">Home (Mani's AI)</a>
+        <a href="#services" class="mobile-page-link" onclick="openSitePage('page-services', this); return false;">AI Services & Process</a>
+        <a href="#case-studies" class="mobile-page-link" onclick="openSitePage('page-cases', this); return false;">Case Studies</a>
+        <a href="#reviews" class="mobile-page-link" onclick="openSitePage('page-reviews', this); return false;">Reviews & FAQ</a>
+        <a href="#about" class="mobile-page-link" onclick="openSitePage('page-about', this); return false;">About Us</a>
+        <a href="#privacy" class="mobile-page-link" onclick="openSitePage('page-privacy', this); return false;">Privacy & Terms</a>
+        <a href="#contact" class="mobile-page-link" onclick="openSitePage('page-contact', this); return false;">Contact Us</a>
     </div>
 
     <!-- Main Website Wrap -->
@@ -158,30 +212,24 @@
         <div class="navbar-wrapper">
             <nav class="iphone-glass navbar">
                 <a id="secretLoginTrigger" class="logo">Money Bagga</a>
-                <div class="nav-links">
-                    <a href="#home" class="nav-btn active" data-target="page-home" onclick="openSitePage('page-home', this); return false;">Home</a>
-                    <a href="#case-studies-page" class="nav-btn" data-target="page-solutions" onclick="openSitePage('page-solutions', this); return false;">Case Studies</a>
-                    <a href="#team-page" class="nav-btn" data-target="page-team" onclick="openSitePage('page-team', this); return false;">Team</a>
-                    <a href="#about-page" class="nav-btn" data-target="page-about" onclick="openSitePage('page-about', this); return false;">About Us</a>
-                    <a href="#privacy-page" class="nav-btn" data-target="page-privacy" onclick="openSitePage('page-privacy', this); return false;">Policy</a>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <a href="#contact" class="btn-glass" style="padding: 10px 22px; font-size: 14px;" onclick="openSitePage('page-contact'); return false;">Get Template</a>
+                    <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open Menu" title="Open Pages Menu">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
                 </div>
-                <a href="#contact-page" class="btn-glass" style="padding: 10px 24px; font-size: 14px;" onclick="openSitePage('page-contact', this); return false;">Get Template</a>
-                <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open Menu">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
             </nav>
         </div>
 
         <main class="desktop-wrapper">
 
             <!-- =================================================================
-                 PAGE 1: HOME PAGE (HERO VIDEO + MANI AI SEARCH + DEVELOPER PHOTO)
+                 PAGE 1: FRONT PAGE (VIDEO HERO + AI SEARCH ENGINE + DEVELOPER PHOTO)
                  ================================================================= -->
             <div id="page-home" class="site-page-view active-page">
 
                 <!-- HERO SECTION (with Background Video) -->
                 <section class="hero">
-                    <!-- VIDEO BACKGROUND: Put your MP4 file as images/hero-bg.mp4 -->
                     <div class="hero-video-bg">
                         <video autoplay muted loop playsinline id="hero-video">
                             <source src="images/hero-bg.mp4" type="video/mp4">
@@ -196,7 +244,7 @@
                         <h1>Intelligent Automation<br><span class="text-gradient">for Modern Teams</span></h1>
                         <p>We build AI-powered automation systems that eliminate manual work, reduce costs, and multiply your business performance instantly.</p>
                         <div class="hero-buttons">
-                            <a href="#contact-page" class="btn-white" onclick="openSitePage('page-contact'); return false;">Get this Template ↗</a>
+                            <a href="#contact" class="btn-white" onclick="openSitePage('page-contact'); return false;">Get this Template ↗</a>
                             <a href="#mani-ai-chat" class="btn-glass">Work with Us</a>
                         </div>
                     </div>
@@ -236,7 +284,7 @@
                         <button id="remove-preview-btn" style="background: none; border: none; color: #ff6b6b; font-size: 20px; cursor: pointer; margin-left: 10px;">&times;</button>
                     </div>
 
-                    <!-- LIVE ORB UI (GEMINI GOLA STYLE: Camera + Screen Share + Gemini Gola + Mic + Close) -->
+                    <!-- LIVE ORB UI -->
                     <div id="live-orb-ui" class="live-orb-overlay">
                         <button id="gola-cam-btn" class="orb-round-btn" title="Camera On/Off">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -275,7 +323,7 @@
                     <input type="file" id="input-file-camera" accept="image/*" capture="environment" style="display:none;">
                     <input type="file" id="input-file-gallery" accept="image/*" style="display:none;">
 
-                    <!-- PLUS BUTTON DROPDOWN MENU (Camera + Gallery + Share Screen) -->
+                    <!-- PLUS BUTTON DROPDOWN MENU -->
                     <div id="plus-popover-menu" class="plus-popover-menu">
                         <button class="plus-menu-item" id="opt-camera">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -291,24 +339,20 @@
                         </button>
                     </div>
 
-                    <!-- SEARCH ENGINE INPUT CAPSULE (PROPERLY ALIGNED LAYOUT) -->
+                    <!-- SEARCH ENGINE INPUT CAPSULE -->
                     <div class="search-capsule-outer">
                         <div class="iphone-glass search-bar-container">
                             <input type="text" id="ai-chat-input" class="search-engine-input" placeholder="Ask Mani's AI...">
                             <div class="search-buttons-row">
-                                <!-- LIVE BUTTON -->
                                 <button id="btn-live-toggle" class="live-wave-btn" title="Live Mode Toggle">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="8" y1="8" x2="8" y2="16"></line><line x1="12" y1="5" x2="12" y2="19"></line><line x1="16" y1="9" x2="16" y2="15"></line></svg>
                                 </button>
-                                <!-- PLUS BUTTON -->
                                 <button id="btn-gallery-plus" class="search-icon-btn" title="Attach Media">
                                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                 </button>
-                                <!-- MIC BUTTON -->
                                 <button id="btn-mic" class="search-icon-btn" title="Voice Search">
                                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
                                 </button>
-                                <!-- SEND BUTTON -->
                                 <button id="send-ai-btn" title="Send Prompt">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                                 </button>
@@ -324,7 +368,7 @@
                 </section>
 
                 <!-- Developer Section (Directly Below AI Search Engine with Clean Gap) -->
-                <section id="gallery" class="section-padding reveal-up active" style="padding-top: 130px; margin-bottom: 40px;">
+                <section id="gallery" class="section-padding reveal-up active" style="padding-top: 130px; margin-bottom: 30px;">
                     <div class="center-title"><span class="tagline">Developer</span><h2>Money Bagga</h2></div>
                     <div style="display: flex; justify-content: center;">
                         <div class="iphone-glass card dev-premium-card" style="position: relative;">
@@ -337,9 +381,9 @@
             </div>
 
             <!-- =================================================================
-                 PAGE 2: SERVICES, SOLUTIONS & CASE STUDIES PAGE
+                 PAGE 2: AI SERVICES & PROCESS (OPENS FROM 3-DOT MENU)
                  ================================================================= -->
-            <div id="page-solutions" class="site-page-view subpage-top-spacer">
+            <div id="page-services" class="site-page-view subpage-top-spacer">
 
                 <!-- Why Choose Us -->
                 <section class="reveal-up active" style="padding-top: 20px;">
@@ -379,8 +423,15 @@
                     </div>
                 </section>
 
+            </div>
+
+            <!-- =================================================================
+                 PAGE 3: CASE STUDIES & TECH ECOSYSTEM (OPENS FROM 3-DOT MENU)
+                 ================================================================= -->
+            <div id="page-cases" class="site-page-view subpage-top-spacer">
+
                 <!-- Case Studies -->
-                <section id="case-studies" class="section-padding reveal-up active">
+                <section id="case-studies" class="reveal-up active" style="padding-top: 20px;">
                     <div class="center-title"><span class="tagline">Portfolio</span><h2>What We've Built</h2></div>
                     <div class="iphone-glass card case-study-card">
                         <div class="case-visual-side"><div class="hologram"></div><div class="hologram-core"></div></div>
@@ -401,67 +452,15 @@
                     </div></div>
                 </section>
 
-                <!-- Detailed Technical Documentation for AdSense Value -->
-                <section class="section-padding reveal-up active">
-                    <div class="iphone-glass policy-content-box">
-                        <h3>How Mani AI Transforms Digital Workflows</h3>
-                        <p>Mani AI is built to bridge the gap between complex artificial intelligence models and practical everyday productivity. Whether you are a software developer debugging code, a student researching technical subjects, or a business owner automating customer interactions, our platform delivers real-time multimodal intelligence directly inside your browser.</p>
-                        <h3>Multimodal Vision & Voice Architecture</h3>
-                        <p>Unlike traditional text-only chatbots, Mani AI integrates real-time camera vision analysis, live screen-sharing inspection, and natural voice synthesis (supporting both Hindi and English). Our client-side image optimization engine compresses visual frames securely before transmission, ensuring rapid response times even on low-bandwidth mobile networks.</p>
-                    </div>
-                </section>
-
-                <div class="back-home-bar">
-                    <a href="#home" class="btn-glass" onclick="openSitePage('page-home'); return false;">← Back to Mani's AI Home</a>
-                </div>
             </div>
 
             <!-- =================================================================
-                 PAGE 3: TEAM, REVIEWS & FAQ PAGE
+                 PAGE 4: REVIEWS & FAQ PAGE (TEAM REMOVED AS REQUESTED)
                  ================================================================= -->
-            <div id="page-team" class="site-page-view subpage-top-spacer">
-
-                <!-- Team Section (WITH PHOTO SUPPORT FOR ALL 4 MEMBERS) -->
-                <section id="team" class="reveal-up active" style="padding-top: 20px;">
-                    <div class="center-title"><span class="tagline">Leadership</span><h2>Meet the MANI Minds</h2></div>
-                    <div class="grid-4">
-                        <!-- TEAM MEMBER 1: images/team1.jpg -->
-                        <div class="iphone-glass card team-card">
-                            <div class="team-photo-box">
-                                <img src="images/team1.jpg" alt="Mani Singh" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="team-hud-ring" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"><div class="t-outer"></div><div class="t-inner"></div><div class="tech-core"></div></div>
-                            </div>
-                            <h4>Mani Singh</h4><p>Founder & Architect</p>
-                        </div>
-                        <!-- TEAM MEMBER 2: images/team2.jpg -->
-                        <div class="iphone-glass card team-card">
-                            <div class="team-photo-box">
-                                <img src="images/team2.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="team-hud-ring" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"><div class="t-outer"></div><div class="t-inner"></div><div class="tech-core"></div></div>
-                            </div>
-                            <h4>Team Expert</h4><p>Integration Specialist</p>
-                        </div>
-                        <!-- TEAM MEMBER 3: images/team3.jpg -->
-                        <div class="iphone-glass card team-card">
-                            <div class="team-photo-box">
-                                <img src="images/team3.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="team-hud-ring" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"><div class="t-outer"></div><div class="t-inner"></div><div class="tech-core"></div></div>
-                            </div>
-                            <h4>Team Expert</h4><p>AI Engineer</p>
-                        </div>
-                        <!-- TEAM MEMBER 4: images/team4.jpg -->
-                        <div class="iphone-glass card team-card">
-                            <div class="team-photo-box">
-                                <img src="images/team4.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="team-hud-ring" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"><div class="t-outer"></div><div class="t-inner"></div><div class="tech-core"></div></div>
-                            </div>
-                            <h4>Team Expert</h4><p>UI/UX Designer</p>
-                        </div>
-                    </div>
-                </section>
+            <div id="page-reviews" class="site-page-view subpage-top-spacer">
 
                 <!-- Reviews -->
-                <section class="section-padding reveal-up active">
+                <section class="reveal-up active" style="padding-top: 20px;">
                     <div class="center-title"><span class="tagline">Reviews</span><h2>What They're Saying</h2></div>
                     <div class="grid-2">
                         <div class="iphone-glass card"><div class="quote-mark">"</div><p class="testimonial-text">We were spending hours on repetitive manual tasks. MANI's automation system saved us 30+ hours per week instantly. Highly recommended!</p><div class="client-info"><div class="client-avatar">MT</div><div><h4>Mani Team Member</h4><p style="font-size:14px;">Automation Specialist</p></div></div></div>
@@ -480,87 +479,56 @@
                     </div>
                 </section>
 
-                <div class="back-home-bar">
-                    <a href="#home" class="btn-glass" onclick="openSitePage('page-home'); return false;">← Back to Mani's AI Home</a>
-                </div>
             </div>
 
             <!-- =================================================================
-                 PAGE 4: ABOUT US PAGE (MANDATORY FOR ADSENSE APPROVAL)
+                 PAGE 5: ABOUT US PAGE (OPENS FROM 3-DOT MENU & FOOTER)
                  ================================================================= -->
             <div id="page-about" class="site-page-view subpage-top-spacer">
                 <section class="reveal-up active" style="padding-top: 20px;">
                     <div class="center-title">
-                        <span class="tagline">About Our Platform</span>
-                        <h2>About Mani AI & Money Bagga</h2>
-                        <p>Empowering users across India with accessible, high-speed artificial intelligence and custom workflow automation.</p>
+                        <span class="tagline">About Us</span>
+                        <h2>About Mani AI Platform</h2>
                     </div>
-
-                    <div class="iphone-glass policy-content-box">
+                    <div class="iphone-glass clean-doc-card">
                         <h3>Who We Are</h3>
-                        <p>Welcome to <strong>Mani AI</strong> (accessible at <strong>https://nexusmani.gt.tc</strong>), an advanced AI automation and multimodal assistant platform proudly created and maintained by <strong>Money Bagga (Mani Singh)</strong> in Haroli, District Una, Himachal Pradesh, India (Pincode 177220).</p>
-                        <p>Started with the vision of making cutting-edge artificial intelligence simple, fast, and accessible on both desktop and mobile devices, Mani AI combines conversational Large Language Models (LLMs), real-time visual recognition, and custom business workflow engineering under one unified glassmorphic interface.</p>
+                        <p><strong>Mani AI</strong> (accessible at <strong>https://nexusmani.gt.tc</strong>) is an advanced AI automation and multimodal assistant platform developed by <strong>Money Bagga (Mani Singh)</strong> in Haroli, District Una, Himachal Pradesh, India (Pincode 177220).</p>
+                        <p>Our platform combines conversational Large Language Models (LLMs), real-time visual recognition, and custom business workflow engineering inside a fast, lightweight interface built for both desktop and mobile users.</p>
 
-                        <h3>Our Core Mission</h3>
-                        <p>Our mission is to eliminate repetitive manual bottlenecks for individuals, students, developers, and modern enterprises. By integrating voice recognition, live camera analysis, and screen-sharing assistance directly in the browser without requiring heavy software downloads, we help users solve technical problems and automate tasks in seconds.</p>
-
-                        <h3>What Makes Mani AI Unique</h3>
+                        <h3>Core Capabilities</h3>
                         <ul>
-                            <li><strong>Real-Time Multimodal Intelligence:</strong> Interact via text, voice commands (Hindi & English), gallery images, live camera streams, or screen sharing.</li>
-                            <li><strong>Lightweight & Mobile Optimized:</strong> Engineered from the ground up to run smoothly even on 4GB RAM smartphones without background crashes.</li>
-                            <li><strong>Custom Full-Stack Engineering:</strong> Built with clean HTML5, modern CSS3 glassmorphism, and resilient JavaScript API fallback architecture.</li>
-                            <li><strong>Local Innovation from Himachal Pradesh:</strong> Proudly developed in Haroli, District Una, demonstrating world-class software engineering from India.</li>
+                            <li><strong>Multimodal AI Assistant:</strong> Interact seamlessly via text, voice commands (Hindi & English), gallery photos/videos, live camera vision, and screen sharing.</li>
+                            <li><strong>Workflow & API Engineering:</strong> Custom automation pipelines designed to reduce manual bottlenecks and improve response speed.</li>
+                            <li><strong>Developer:</strong> Created and maintained by Money Bagga, Full-Stack Developer & Automation Architect from Haroli, District Una, HP.</li>
                         </ul>
-
-                        <h3>Meet the Creator</h3>
-                        <p><strong>Money Bagga (Mani Singh)</strong> is a Full-Stack Web Developer, Automation Architect, and Cybersecurity Enthusiast based in Haroli, District Una, Himachal Pradesh. Specializing in Python automation, JavaScript web applications, API integrations, and intelligent bots, he focuses on building secure, high-performance digital products.</p>
                     </div>
                 </section>
-
-                <div class="back-home-bar">
-                    <a href="#home" class="btn-glass" onclick="openSitePage('page-home'); return false;">← Back to Mani's AI Home</a>
-                </div>
             </div>
 
             <!-- =================================================================
-                 PAGE 5: PRIVACY POLICY & TERMS OF SERVICE (ADSENSE COMPLIANT)
+                 PAGE 6: PRIVACY POLICY & TERMS (OPENS FROM 3-DOT MENU & FOOTER)
                  ================================================================= -->
             <div id="page-privacy" class="site-page-view subpage-top-spacer">
                 <section class="reveal-up active" style="padding-top: 20px;">
                     <div class="center-title">
-                        <span class="tagline">Legal & Compliance</span>
-                        <h2>Privacy Policy & Terms of Service</h2>
-                        <p>Transparency, user data safety, and compliance with global advertising and privacy standards.</p>
+                        <span class="tagline">Legal</span>
+                        <h2>Privacy Policy & Terms</h2>
                     </div>
+                    <div class="iphone-glass clean-doc-card">
+                        <h3>Privacy Policy</h3>
+                        <p>At <strong>Mani AI</strong> (https://nexusmani.gt.tc), operated from Haroli, District Una, Himachal Pradesh, India, we respect and protect the privacy of our users. Prompts, voice inputs, or camera/screen frames used in the AI tool are processed strictly in real time to generate responses and are not permanently stored or sold to third parties.</p>
 
-                    <div class="iphone-glass policy-content-box">
-                        <h3>1. Privacy Policy</h3>
-                        <p>At <strong>Mani AI</strong> (https://nexusmani.gt.tc), accessible from Haroli, District Una, Himachal Pradesh, India, protecting the privacy of our visitors is one of our highest priorities. This Privacy Policy document outlines the types of information that are collected and recorded by Mani AI and how we use it.</p>
+                        <h3>Cookies & Google AdSense</h3>
+                        <p>Third-party vendors, including Google, use cookies (such as the DoubleClick DART cookie) to serve ads based on a user's prior visits to this website or other websites. Users may opt out of personalized advertising by visiting Google Ads Settings (https://policies.google.com/technologies/ads).</p>
 
-                        <h3>2. Information We Collect & Camera/Mic Usage</h3>
-                        <p>When you use our interactive AI chat, voice search, live camera mode, or screen-sharing tools, your prompts and media frames are processed solely to generate real-time AI responses. We do not permanently store your personal camera recordings or private voice clips on public servers. Information submitted via our Contact Form (such as your name, business email, and company name) is used strictly to respond to your project inquiries.</p>
-
-                        <h3>3. Google AdSense & DoubleClick DART Cookie</h3>
-                        <p>Google is a third-party vendor on our site. It also uses cookies, known as DART cookies, to serve ads to our site visitors based upon their visit to https://nexusmani.gt.tc and other sites on the internet. However, visitors may choose to decline the use of DART cookies by visiting the Google ad and content network Privacy Policy at the following URL: <em>https://policies.google.com/technologies/ads</em></p>
-
-                        <h3>4. Log Files & Cookies</h3>
-                        <p>Mani AI follows a standard procedure of using log files. These files log visitors when they visit websites. The information collected by log files includes internet protocol (IP) addresses, browser type, Internet Service Provider (ISP), date and time stamp, referring/exit pages, and possibly the number of clicks. These are not linked to any information that is personally identifiable.</p>
-
-                        <h3>5. Terms and Conditions of Use</h3>
-                        <p>By accessing this website at https://nexusmani.gt.tc, you agree to be bound by these Website Terms and Conditions of Use and agree that you are responsible for compliance with any applicable local laws in India. You may not use this platform for any unlawful, harmful, or unauthorized automated scraping activities. All custom UI designs, code structures, and branding associated with Mani AI and Money Bagga are protected intellectual property.</p>
-
-                        <h3>6. Consent & Contact for Privacy Inquiries</h3>
-                        <p>By using our website, you hereby consent to our Privacy Policy and agree to its Terms and Conditions. If you have additional questions or require more information about our Privacy Policy, please contact us via our Contact page or call +91 82196-93695.</p>
+                        <h3>Terms of Service</h3>
+                        <p>By accessing https://nexusmani.gt.tc, you agree to use our AI tools and automation services lawfully. Unauthorized scraping, abuse of API endpoints, or redistribution of our proprietary interface design created by Money Bagga is strictly prohibited. For any legal or support queries, contact us at +91 82196-93695.</p>
                     </div>
                 </section>
-
-                <div class="back-home-bar">
-                    <a href="#home" class="btn-glass" onclick="openSitePage('page-home'); return false;">← Back to Mani's AI Home</a>
-                </div>
             </div>
 
             <!-- =================================================================
-                 PAGE 6: CONTACT US PAGE (WITH YOUR NUMBER & LEAD FORM)
+                 PAGE 7: CONTACT US PAGE (WITH YOUR NUMBER +91 82196-93695)
                  ================================================================= -->
             <div id="page-contact" class="site-page-view subpage-top-spacer">
                 <section id="contact" class="reveal-up active" style="padding-top: 20px;">
@@ -573,39 +541,22 @@
                             <input type="text" id="leadCompany" class="input-glass" placeholder="Company name" required>
                             <button type="submit" class="btn-white" style="width: 100%; padding: 20px;">Send Your Request</button>
                         </form>
-                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--glass-border); color: var(--text-dim); font-size: 14px;">
-                            <p><strong>Location:</strong> Haroli, District Una, Himachal Pradesh, India - 177220</p>
-                            <p style="margin-top: 6px;"><strong>Developer:</strong> Money Bagga (Mani Singh)</p>
-                        </div>
                     </div>
                 </section>
-
-                <div class="back-home-bar">
-                    <a href="#home" class="btn-glass" onclick="openSitePage('page-home'); return false;">← Back to Mani's AI Home</a>
-                </div>
             </div>
 
         </main>
 
-        <!-- Footer (Visible on Every Page with Clickable About, Policy, Terms & Contact Options) -->
-        <footer class="iphone-glass footer reveal-up active" style="max-width: 1200px; margin: 0 auto 40px;">
-            <div class="footer-top">
-                <a href="#home" class="logo" onclick="openSitePage('page-home'); return false;">Powerd By Mani Ai</a>
-                <div class="social-row">
-                    <button class="footer-link-btn" onclick="openSitePage('page-home')">Home</button>
-                    <button class="footer-link-btn" onclick="openSitePage('page-solutions')">Case Studies</button>
-                    <button class="footer-link-btn" onclick="openSitePage('page-team')">Team</button>
-                    <button class="footer-link-btn" onclick="openSitePage('page-about')">About Us</button>
-                    <button class="footer-link-btn" onclick="openSitePage('page-contact')">Contact Us</button>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>© 2026 Developed by Money bagga  Haroli, District Una, Himachal Pradesh Pincode 177220 </p>
-                <div class="footer-links">
-                    <button class="footer-link-btn" onclick="openSitePage('page-about')">About Us</button>
-                    <button class="footer-link-btn" onclick="openSitePage('page-privacy')">Privacy Policy</button>
-                    <button class="footer-link-btn" onclick="openSitePage('page-privacy')">Terms of Service</button>
-                    <button class="footer-link-btn" onclick="openSitePage('page-contact')">Contact</button>
+        <!-- Clean Minimal Footer (Only Essential Info at the Very Bottom for AdSense) -->
+        <footer class="iphone-glass footer reveal-up active" style="max-width: 1200px; margin: 0 auto 40px; padding: 36px 45px;">
+            <div class="footer-bottom" style="border-top: none; padding-top: 0; align-items: center;">
+                <p>© 2026 Developed by Money Bagga · Haroli, District Una, Himachal Pradesh 177220</p>
+                <div class="clean-footer-links">
+                    <a href="#home" onclick="openSitePage('page-home'); return false;">Home</a>
+                    <a href="#about" onclick="openSitePage('page-about'); return false;">About Us</a>
+                    <a href="#privacy" onclick="openSitePage('page-privacy'); return false;">Privacy Policy</a>
+                    <a href="#privacy" onclick="openSitePage('page-privacy'); return false;">Terms</a>
+                    <a href="#contact" onclick="openSitePage('page-contact'); return false;">Contact</a>
                 </div>
             </div>
         </footer>
@@ -636,7 +587,7 @@
         </div>
     </div>
 
-    <!-- Multi-Page Switcher Script (Works seamlessly with script.js) -->
+    <!-- Page Switcher Script (Connected to 3-Dot Menu & Footer) -->
     <script>
         function openSitePage(pageId, clickedEl) {
             const allPages = document.querySelectorAll('.site-page-view');
@@ -651,16 +602,6 @@
                 });
             }
 
-            // Update desktop navbar active state
-            document.querySelectorAll('.nav-links .nav-btn').forEach(btn => {
-                if (btn.getAttribute('data-target') === pageId) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-
-            // Update mobile menu active state & close mobile overlay
             document.querySelectorAll('#mobileNavOverlay a').forEach(link => link.classList.remove('active'));
             if (clickedEl && clickedEl.classList.contains('mobile-page-link')) {
                 clickedEl.classList.add('active');
@@ -669,7 +610,6 @@
                 closeMobileNav();
             }
 
-            // Keep hero background video playing when returning to Home
             if (pageId === 'page-home') {
                 const heroVid = document.getElementById('hero-video');
                 if (heroVid && heroVid.paused) {
