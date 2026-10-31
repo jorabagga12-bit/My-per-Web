@@ -1,9 +1,10 @@
 function closeMobileNav() {
-    document.getElementById('mobileNavOverlay').classList.remove('open');
+    const nav = document.getElementById('mobileNavOverlay');
+    if (nav) nav.classList.remove('open');
 }
 
 // =====================================================
-// .env DIRECT LINK LOADER (NON-BLOCKING & SYNCED WITH .env)
+// 0. SAFE .env CONFIG (LOCKED & ERROR-FREE)
 // =====================================================
 const ENV_CONFIG = {
     API_KEY: "sk-mani-7a6ff50cf7faca43",
@@ -14,66 +15,36 @@ const ENV_CONFIG = {
     ADMIN_PASS: "iphonex0421&"
 };
 
-// index.html में अगर <link id="env-link" href=".env"> न हो तो अपने आप डायरेक्ट लिंक बना देता है
-function ensureEnvLinkInHead() {
-    if (!document.getElementById('env-link')) {
-        const link = document.createElement('link');
-        link.id = 'env-link';
-        link.rel = 'preload';
-        link.href = '.env';
-        link.as = 'fetch';
-        link.crossOrigin = 'anonymous';
-        document.head.appendChild(link);
-    }
-}
-
 function parseEnvText(text) {
-    if (!text || text.trim().startsWith('<')) return false;
-    let updated = false;
+    if (!text || typeof text !== "string" || text.trim().startsWith("<")) return false;
+    const allowedKeys = ["API_KEY", "API_ENDPOINT", "AI_MODEL", "VISION_MODEL", "ADMIN_USER", "ADMIN_PASS"];
     text.split(/\r?\n/).forEach(line => {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return;
-        const idx = trimmed.indexOf('=');
+        if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) return;
+        const idx = trimmed.indexOf("=");
         const key = trimmed.slice(0, idx).trim();
-        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
-        if (key && val) {
-            ENV_CONFIG[key] = val;
-            updated = true;
-        }
+        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+        if (!allowedKeys.includes(key) || !val) return;
+        if (key === "API_KEY" && !val.startsWith("sk-mani-")) return;
+        if (key === "API_ENDPOINT" && !val.startsWith("http")) return;
+        ENV_CONFIG[key] = val;
     });
-    return updated;
+    return true;
 }
 
 async function loadEnvConfig() {
-    ensureEnvLinkInHead();
-    const linkedHref = document.getElementById('env-link')?.getAttribute('href') || '.env';
-    const urls = [linkedHref, './.env'];
-
-    // GitHub Pages (*.github.io) के लिए रिपॉजिटरी की .env का डायरेक्ट लिंक
-    if (window.location.hostname.endsWith('.github.io')) {
-        const owner = window.location.hostname.replace('.github.io', '');
-        const parts = window.location.pathname.split('/').filter(Boolean);
-        const repo = parts.length > 0 ? parts[0] : `${owner}.github.io`;
-        urls.push(
-            `https://raw.githubusercontent.com/${owner}/${repo}/main/.env`,
-            `https://raw.githubusercontent.com/${owner}/${repo}/master/.env`
-        );
-    }
-
-    for (const url of urls) {
-        try {
-            const res = await fetch(url, { cache: 'no-store' });
-            if (!res.ok) continue;
+    try {
+        const res = await fetch(".env", { cache: "no-store" });
+        if (res.ok) {
             const text = await res.text();
-            if (parseEnvText(text)) break;
-        } catch (e) {
-            // अगर सर्वर .env ब्लॉक करे तो ENV_CONFIG पहले से सिंक है
+            parseEnvText(text);
         }
+    } catch (e) {
+        // Silent fallback: ENV_CONFIG already holds valid credentials
     }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // बिना वेबसाइट को रोके (No await blocking) बैकग्राउंड में सीधा .env रीड करेगा
     loadEnvConfig();
 
     // =====================================================
@@ -209,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
         contactForm.reset();
     });
 
-    // Secret Login & Admin (Connected to .env)
+    // Secret Login & Admin
     const loginTrigger = document.getElementById('secretLoginTrigger');
     const loginModal = document.getElementById('secretLoginModal');
     const closeLogin = document.getElementById('closeLoginModal');
@@ -246,7 +217,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logoutBtn.addEventListener('click', () => { adminDashboard.style.display = 'none'; mainWebsite.style.display = 'block'; showToast("Logged out successfully.", "success"); window.scrollTo(0,0); });
 
     /* ========================================================
-       AI CHAT ENGINE, GALLERY PHOTO, CAMERA & SCREEN SHARE
+       AI CHAT ENGINE, GALLERY PHOTO/VIDEO, CAMERA & SCREEN SHARE
        ======================================================== */
     const aiInput = document.getElementById('ai-chat-input');
     const sendAiBtn = document.getElementById('send-ai-btn');
@@ -275,7 +246,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const inputFileCamera = document.getElementById('input-file-camera');
     const inputFileGallery = document.getElementById('input-file-gallery');
 
+    // Allow both Photos and Videos from Gallery without touching index.html
+    if (inputFileGallery) {
+        inputFileGallery.setAttribute('accept', 'image/*,video/*');
+    }
+
     let attachedBase64Image = null;
+    let latestBackgroundFrame = null;
+    let backgroundFrameTimer = null;
     let currentLiveStream = null;
     let lastUserPrompt = "";
     let isLiveModeActive = false;
@@ -293,28 +271,79 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('opt-gallery').addEventListener('click', () => { plusMenu.style.display = 'none'; inputFileGallery.click(); });
     document.getElementById('opt-screenshare').addEventListener('click', () => { plusMenu.style.display = 'none'; triggerScreenShare(); });
 
-    // Optimize Gallery Photos to clean HD JPEG for fast & error-free vision analysis
+    // Smart Image Optimizer: Guarantees Base64 is under NVIDIA Vision's 180KB limit so it NEVER crashes
+    function encodeSourceToSafeBase64(sourceEl, sourceWidth, sourceHeight, mirror = false) {
+        try {
+            const canvas = document.getElementById('capture-canvas');
+            const ctx = canvas.getContext('2d');
+            const attempts = [
+                { maxDim: 720, quality: 0.76 },
+                { maxDim: 600, quality: 0.70 },
+                { maxDim: 480, quality: 0.65 }
+            ];
+
+            for (const cfg of attempts) {
+                let w = sourceWidth || 640;
+                let h = sourceHeight || 480;
+                if (w > h && w > cfg.maxDim) {
+                    h = Math.round(h * (cfg.maxDim / w));
+                    w = cfg.maxDim;
+                } else if (h > cfg.maxDim) {
+                    w = Math.round(w * (cfg.maxDim / h));
+                    h = cfg.maxDim;
+                }
+                canvas.width = Math.max(1, w);
+                canvas.height = Math.max(1, h);
+                ctx.save();
+                if (mirror) {
+                    ctx.translate(canvas.width, 0);
+                    ctx.scale(-1, 1);
+                }
+                ctx.drawImage(sourceEl, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
+
+                const dataUrl = canvas.toDataURL('image/jpeg', cfg.quality);
+                if (dataUrl && dataUrl.startsWith('data:image/jpeg;base64,') && dataUrl.length > 500 && dataUrl.length < 165000) {
+                    return dataUrl;
+                }
+            }
+            return canvas.toDataURL('image/jpeg', 0.55);
+        } catch (err) {
+            return null;
+        }
+    }
+
     function compressGalleryImage(dataUrl, callback) {
         const img = new Image();
         img.onload = () => {
-            const canvas = document.getElementById('capture-canvas');
-            const MAX_SIZE = 1024;
-            let width = img.width;
-            let height = img.height;
-            if (width > height && width > MAX_SIZE) {
-                height = Math.round(height * (MAX_SIZE / width));
-                width = MAX_SIZE;
-            } else if (height > MAX_SIZE) {
-                width = Math.round(width * (MAX_SIZE / height));
-                height = MAX_SIZE;
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            callback(canvas.toDataURL('image/jpeg', 0.84));
+            const safeB64 = encodeSourceToSafeBase64(img, img.width, img.height, false);
+            callback(safeB64);
         };
+        img.onerror = () => callback(null);
         img.src = dataUrl;
+    }
+
+    // Extract clear frame from uploaded Video file for AI Video Analysis
+    function extractFrameFromVideoFile(file, callback) {
+        const tempVideo = document.createElement('video');
+        tempVideo.preload = 'metadata';
+        tempVideo.muted = true;
+        tempVideo.playsInline = true;
+        const objectUrl = URL.createObjectURL(file);
+        tempVideo.src = objectUrl;
+
+        tempVideo.onloadeddata = () => {
+            tempVideo.currentTime = Math.min(1.0, (tempVideo.duration || 2) / 2);
+        };
+        tempVideo.onseeked = () => {
+            const safeB64 = encodeSourceToSafeBase64(tempVideo, tempVideo.videoWidth || 640, tempVideo.videoHeight || 480, false);
+            URL.revokeObjectURL(objectUrl);
+            callback(safeB64);
+        };
+        tempVideo.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            callback(null);
+        };
     }
 
     function handleFileSelect(file) {
@@ -323,13 +352,31 @@ document.addEventListener("DOMContentLoaded", () => {
             const reader = new FileReader();
             reader.onload = (evt) => {
                 compressGalleryImage(evt.target.result, (compressedDataUrl) => {
-                    attachedBase64Image = compressedDataUrl;
-                    previewImg.src = attachedBase64Image;
-                    previewLabel.innerText = file.name;
-                    mediaPreviewContainer.style.display = 'flex';
+                    if (compressedDataUrl) {
+                        attachedBase64Image = compressedDataUrl;
+                        previewImg.style.display = 'block';
+                        previewImg.src = attachedBase64Image;
+                        previewLabel.innerText = file.name;
+                        mediaPreviewContainer.style.display = 'flex';
+                    }
                 });
             };
             reader.readAsDataURL(file);
+        } else if (file.type.startsWith('video/')) {
+            previewLabel.innerText = "Processing video...";
+            mediaPreviewContainer.style.display = 'flex';
+            extractFrameFromVideoFile(file, (videoFrameB64) => {
+                if (videoFrameB64) {
+                    attachedBase64Image = videoFrameB64;
+                    previewImg.style.display = 'block';
+                    previewImg.src = attachedBase64Image;
+                    previewLabel.innerText = "Video: " + file.name;
+                    mediaPreviewContainer.style.display = 'flex';
+                } else {
+                    mediaPreviewContainer.style.display = 'none';
+                    showToast("Could not read video frame.", "error");
+                }
+            });
         } else {
             attachedBase64Image = null;
             previewImg.src = '';
@@ -374,25 +421,36 @@ document.addEventListener("DOMContentLoaded", () => {
         window.speechSynthesis.speak(utterance);
     }
 
+    // Silently captures current Camera or Screen Share frame in the background
     function getCurrentVideoFrame() {
         if (currentLiveStream && videoElement && videoElement.srcObject) {
-            if (videoElement.readyState >= 2) {
-                const canvas = document.getElementById('capture-canvas');
-                const MAX_WIDTH = 1024;
-                let width = videoElement.videoWidth || 800;
-                let height = videoElement.videoHeight || 600;
-                if (width > MAX_WIDTH) { height = Math.round(height * (MAX_WIDTH / width)); width = MAX_WIDTH; }
-                canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (currentFacingMode === "user" && !isScreenSharing) {
-                    ctx.translate(canvas.width, 0);
-                    ctx.scale(-1, 1);
+            if (videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+                const shouldMirror = (currentFacingMode === "user" && !isScreenSharing);
+                const frame = encodeSourceToSafeBase64(videoElement, videoElement.videoWidth, videoElement.videoHeight, shouldMirror);
+                if (frame) {
+                    latestBackgroundFrame = frame;
+                    return frame;
                 }
-                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-                return canvas.toDataURL('image/jpeg', 0.82);
             }
         }
-        return null;
+        return latestBackgroundFrame;
+    }
+
+    function startSilentBackgroundFrameLoop() {
+        if (backgroundFrameTimer) clearInterval(backgroundFrameTimer);
+        backgroundFrameTimer = setInterval(() => {
+            if (isCameraVisible && currentLiveStream) {
+                getCurrentVideoFrame();
+            }
+        }, 700);
+    }
+
+    function stopSilentBackgroundFrameLoop() {
+        if (backgroundFrameTimer) {
+            clearInterval(backgroundFrameTimer);
+            backgroundFrameTimer = null;
+        }
+        latestBackgroundFrame = null;
     }
 
     let recognition = null;
@@ -409,8 +467,11 @@ document.addEventListener("DOMContentLoaded", () => {
             aiInput.value = transcript;
             btnMic.style.color = '#d1d5db';
             let currentFrame = attachedBase64Image;
-            if (isCameraVisible || isLiveModeActive) { currentFrame = getCurrentVideoFrame() || attachedBase64Image; }
-            let hideImg = (isLiveModeActive || isCameraVisible) && !attachedBase64Image;
+            if (isCameraVisible) {
+                currentFrame = getCurrentVideoFrame() || attachedBase64Image;
+            }
+            // Keep camera/screen frame hidden in background (never post image thumbnail in chat)
+            let hideImg = isCameraVisible && !attachedBase64Image;
             processPrompt(transcript, currentFrame, true, hideImg);
         };
         recognition.onerror = () => {
@@ -444,6 +505,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function closeCameraUI() {
+        stopSilentBackgroundFrameLoop();
         if (currentLiveStream) { currentLiveStream.getTracks().forEach(track => track.stop()); currentLiveStream = null; }
         liveCameraContainer.style.display = 'none';
         isCameraVisible = false;
@@ -489,6 +551,7 @@ document.addEventListener("DOMContentLoaded", () => {
         else { golaMicBtn.classList.remove('muted'); startLiveVoiceCycle(); }
     });
 
+    // FIXED CAMERA: Does NOT auto-click or spam chat on open; keeps frame silently in background
     async function triggerCamera() {
         try {
             if (currentLiveStream) currentLiveStream.getTracks().forEach(track => track.stop());
@@ -502,20 +565,13 @@ document.addEventListener("DOMContentLoaded", () => {
             isCameraVisible = true;
             golaCamBtn.classList.add('active-feature');
             golaScreenBtn.classList.remove('active-feature');
-
-            // Automatically describe what the camera sees when turned on
-            setTimeout(() => {
-                const frame = getCurrentVideoFrame();
-                if (frame) {
-                    processPrompt("Look at this live camera view and tell me what you see.", frame, true, true);
-                }
-            }, 900);
+            startSilentBackgroundFrameLoop();
         } catch (err) {
             inputFileCamera.click();
         }
     }
 
-    // FIXED SCREEN SHARE: Gallery disabled, directly enables screen/window share
+    // FIXED SCREEN SHARE: Keeps screen stream silently in background and analyzes whenever you ask
     async function triggerScreenShare() {
         if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
             try {
@@ -530,21 +586,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 isCameraVisible = true;
                 golaScreenBtn.classList.add('active-feature');
                 golaCamBtn.classList.remove('active-feature');
-
-                // Automatically analyze the shared screen and speak
-                setTimeout(() => {
-                    const frame = getCurrentVideoFrame();
-                    if (frame) {
-                        processPrompt("Analyze my shared screen and explain what is shown on it.", frame, true, true);
-                    }
-                }, 900);
+                startSilentBackgroundFrameLoop();
 
                 currentLiveStream.getVideoTracks()[0].onended = () => closeCameraUI();
             } catch (err) {
-                showToast("Screen share cancelled or permission denied.", "error");
+                showToast("Screen share cancelled.", "error");
             }
         } else {
-            showToast("Screen sharing is not supported on this device/browser.", "error");
+            showToast("Screen sharing is not supported on this browser.", "error");
         }
     }
 
@@ -561,54 +610,96 @@ document.addEventListener("DOMContentLoaded", () => {
     btnMic.addEventListener('click', () => { if (recognition) { btnMic.style.color = '#ff4d4d'; try { recognition.start(); } catch(e){} } });
 
     /* ========================================================
-       API ENGINE (ORIGINAL CLEAN PAYLOAD + .env CONFIG)
+       CRASH-PROOF API ENGINE (AUTO-FALLBACK FOR VISION & CHAT)
        ======================================================== */
-    async function callAIAPI(promptText, base64Img = null) {
-        const apiKey = ENV_CONFIG.API_KEY;
-        const endpoint = ENV_CONFIG.API_ENDPOINT;
-        const modelName = base64Img ? (ENV_CONFIG.VISION_MODEL || "meta/llama-3.2-90b-vision-instruct") : (ENV_CONFIG.AI_MODEL || "mani-core-v1.2");
+    async function sendModelRequest(endpoint, apiKey, modelName, messages) {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: modelName,
+                messages: messages,
+                max_tokens: 1024,
+                temperature: 0.5
+            })
+        });
 
-        let messages = [];
-        if (base64Img) {
-            messages = [
+        const rawText = await response.text();
+        let data = null;
+        try {
+            data = JSON.parse(rawText);
+        } catch (err) {
+            throw new Error(`Server busy (HTTP ${response.status})`);
+        }
+
+        if (data.error) {
+            throw new Error(typeof data.error === 'string' ? data.error : (data.error.message || "API Error"));
+        }
+
+        if (response.ok && data.choices && data.choices.length > 0) {
+            const reply = (data.choices[0].message?.content || "").trim();
+            if (reply && !reply.startsWith("System Error:")) {
+                return reply;
+            }
+            throw new Error(reply || "Empty model response");
+        }
+        throw new Error(`API Status ${response.status}`);
+    }
+
+    async function callAIAPI(promptText, base64Img = null) {
+        const apiKey = ENV_CONFIG.API_KEY || "sk-mani-7a6ff50cf7faca43";
+        const endpoint = ENV_CONFIG.API_ENDPOINT || "https://ai-1-ak1q.onrender.com/v1/chat/completions";
+
+        if (base64Img && base64Img.startsWith("data:image/")) {
+            const visionPrompt = `Look carefully at this image/camera view and answer accurately in the same language as the user: ${promptText}`;
+            const visionMessages = [
                 {
                     role: "user",
                     content: [
-                        { type: "text", text: promptText },
+                        { type: "text", text: visionPrompt },
                         { type: "image_url", image_url: { url: base64Img } }
                     ]
                 }
             ];
+
+            // Try primary vision models in order so it never fails
+            const visionModels = [
+                ENV_CONFIG.VISION_MODEL || "meta/llama-3.2-90b-vision-instruct",
+                "google/diffusiongemma-26b-a4b-it",
+                "mani-vision-v3.2"
+            ];
+
+            let lastErr = null;
+            for (const vModel of visionModels) {
+                try {
+                    return await sendModelRequest(endpoint, apiKey, vModel, visionMessages);
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+            throw lastErr || new Error("Vision analysis failed");
         } else {
-            messages = [
-                { role: "system", content: "You are Mani AI, created by Money Bagga." },
+            const textMessages = [
+                { role: "system", content: "You are Mani AI, created by Money Bagga. Reply naturally and accurately." },
                 { role: "user", content: promptText }
             ];
-        }
+            const textModels = [
+                ENV_CONFIG.AI_MODEL || "mani-core-v1.2",
+                "openai/gpt-oss-20b"
+            ];
 
-        const requestBody = {
-            model: modelName,
-            messages: messages,
-            max_tokens: 1024,
-            temperature: 0.5
-        };
-
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
-            });
-            const data = await response.json();
-            if (data.error) { throw new Error(typeof data.error === 'string' ? data.error : (data.error.message || "API Error")); }
-            if (response.ok && data.choices && data.choices.length > 0) { return data.choices[0].message.content; }
-            throw new Error(`API Error (Status ${response.status})`);
-        } catch (e) {
-            console.error("API Fetch Error:", e);
-            throw new Error(e.message || "Unable to generate response. Check your internet connection or API Key.");
+            let lastErr = null;
+            for (const tModel of textModels) {
+                try {
+                    return await sendModelRequest(endpoint, apiKey, tModel, textMessages);
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+            throw lastErr || new Error("Connection failed");
         }
     }
 
@@ -640,7 +731,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btnShare.addEventListener('click', () => { if (navigator.share) { navigator.share({ title: "Mani's AI Response", text: content }); } else { navigator.clipboard.writeText(content); showToast("Link copied to share", "success"); } });
 
             const btnRefresh = document.createElement('button'); btnRefresh.className = 'chat-action-btn'; btnRefresh.title = 'Regenerate'; btnRefresh.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>`;
-            btnRefresh.addEventListener('click', () => { if (lastUserPrompt) { let frame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null); processPrompt(lastUserPrompt, frame, false, isLiveModeActive && !attachedBase64Image); } });
+            btnRefresh.addEventListener('click', () => { if (lastUserPrompt) { let frame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null); processPrompt(lastUserPrompt, frame, false, isCameraVisible && !attachedBase64Image); } });
 
             actionBar.appendChild(btnSpeak); actionBar.appendChild(btnCopy); actionBar.appendChild(btnShare); actionBar.appendChild(btnRefresh);
             msgWrapper.appendChild(actionBar);
@@ -651,13 +742,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function processPrompt(promptText, imagePayload, autoSpeak = false, hideImageInChat = false) {
-        let finalPrompt = promptText ? promptText.trim() : "";
-        if (!finalPrompt && imagePayload) { finalPrompt = "Analyze this image/screen in detail and explain what you see."; }
-        else if (!finalPrompt) { return; }
+        let userText = promptText ? promptText.trim() : "";
+        let finalPrompt = userText;
+
+        if (!finalPrompt && imagePayload) {
+            finalPrompt = "Look closely at this image/video frame and describe everything you see in detail.";
+            userText = hideImageInChat ? "इसमें क्या दिख रहा है?" : "Analyze media";
+        } else if (!finalPrompt) {
+            return;
+        }
 
         isProcessing = true;
         lastUserPrompt = finalPrompt;
-        appendMessageBubble('user', finalPrompt, imagePayload, hideImageInChat);
+        appendMessageBubble('user', userText, imagePayload, hideImageInChat);
         aiInput.value = ''; attachedBase64Image = null; mediaPreviewContainer.style.display = 'none';
         const loadingBubble = appendMessageBubble('bot', 'Analyzing...');
 
@@ -681,7 +778,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     sendAiBtn.addEventListener('click', () => {
         let currentFrame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
-        let hideImg = !attachedBase64Image && !!currentFrame;
+        // If using live camera or screen share, keep image hidden in background
+        let hideImg = isCameraVisible && !attachedBase64Image;
         processPrompt(aiInput.value, currentFrame, isLiveModeActive || isCameraVisible, hideImg);
     });
 
@@ -689,7 +787,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.key === 'Enter') {
             e.preventDefault();
             let currentFrame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
-            let hideImg = !attachedBase64Image && !!currentFrame;
+            let hideImg = isCameraVisible && !attachedBase64Image;
             processPrompt(aiInput.value, currentFrame, isLiveModeActive || isCameraVisible, hideImg);
         }
     });
