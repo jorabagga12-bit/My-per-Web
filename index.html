@@ -21,9 +21,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="icon" type="image/jpeg" href="images/aster.jpg">
     <link rel="apple-touch-icon" href="images/aster.jpg">
-
-    <!-- External CSS Connected -->
-    <link rel="stylesheet" href="style.css">
     
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
@@ -47,6 +44,9 @@
       }
     }
     </script>
+
+    <!-- Connected External CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="toastContainer" class="toast-container"></div>
@@ -54,7 +54,7 @@
     <!-- UNIVERSE STARS CANVAS (Brahmand Background) -->
     <canvas id="stars-canvas"></canvas>
 
-    <!-- Ambient Blobs -->
+    <!-- Ambient Blobs (subtle space nebula) -->
     <div class="ambient-bg">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
@@ -96,6 +96,7 @@
 
             <!-- HERO SECTION (with Background Video) -->
             <section class="hero">
+                <!-- VIDEO BACKGROUND: Put your MP4 file as images/hero-bg.mp4 -->
                 <div class="hero-video-bg">
                     <video autoplay muted loop playsinline id="hero-video">
                         <source src="images/hero-bg.mp4" type="video/mp4">
@@ -110,59 +111,56 @@
                     <h1>Intelligent Automation<br><span class="text-gradient">for Modern Teams</span></h1>
                     <p>We build AI-powered automation systems that eliminate manual work, reduce costs, and multiply your business performance instantly.</p>
                     <div class="hero-buttons">
-                        <a href="#contact" class="btn-white">Get this Template</a>
+                        <a href="#contact" class="btn-white">Get this Template ↗</a>
                         <a href="#mani-ai-chat" class="btn-glass">Work with Us</a>
                     </div>
                 </div>
             </section>
 
             <!-- AI Chat / Search Engine Section -->
-            <section id="mani-ai-chat" class="section-padding reveal-up ai-chat-section">
+            <section id="mani-ai-chat" class="section-padding reveal-up" style="max-width: 900px; margin: 0 auto; padding-top: 140px; position: relative;">
                 <div class="center-title" style="margin-bottom: 30px;">
                     <h2 style="font-size: 38px; font-weight: 500;">What are you working on?</h2>
                 </div>
 
                 <!-- Live Camera / Screen Share View UI -->
-                <div id="live-camera-container" class="live-camera-box">
-                    <video id="webcam-video" autoplay playsinline muted></video>
-                    <div class="camera-bottom-bar">
-                        <button id="switch-camera-btn" class="cam-action-pill">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                            <span>Swap Camera</span>
+                <div id="live-camera-container" style="display: none; position: relative; width: 100%; max-width: 600px; margin: 0 auto 20px auto; border-radius: 24px; overflow: hidden; border: 2px solid rgba(56, 189, 248, 0.5); box-shadow: 0 10px 40px rgba(0,0,0,0.6); z-index: 100; background: #000;">
+                    <video id="webcam-video" autoplay playsinline muted style="width: 100%; height: auto; max-height: 400px; object-fit: cover; display: block; border-radius: 24px;"></video>
+                    <div style="position: absolute; bottom: 15px; left: 0; width: 100%; display: flex; justify-content: center; z-index: 10;">
+                        <button id="switch-camera-btn" style="background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 30px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 9v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"/><path d="M9 22V12h6v10M2 10.6L12 2l10 8.6"/></svg> Swap Camera
                         </button>
                     </div>
-                    <button id="close-camera-btn" class="cam-close-circle" aria-label="Close Preview">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <button id="close-camera-btn" style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 10;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
 
                 <!-- Chat Output Screen Container -->
                 <div id="chat-box-wrapper" class="chat-box-wrapper">
-                    <div id="ai-chat-history"></div>
-                    <button id="scroll-bottom-btn" title="Scroll Down">
+                    <div id="ai-chat-history" style="display: flex; flex-direction: column; gap: 18px; max-height: 420px; overflow-y: auto; padding: 10px; scroll-behavior: smooth;"></div>
+                    <button id="scroll-bottom-btn" title="Scroll Down" style="display: none; position: absolute; bottom: 20px; right: 20px; background: rgba(255,255,255,0.15); border: 1px solid var(--glass-border); color: #fff; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; backdrop-filter: blur(10px); align-items: center; justify-content: center; z-index: 10;">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
                     </button>
                 </div>
 
                 <!-- Attached Media Preview Bar -->
-                <div id="media-preview-container" class="media-preview-bar">
-                    <img id="preview-img" src="" alt="Preview">
-                    <span id="preview-label">Media attached</span>
-                    <button id="remove-preview-btn" aria-label="Remove Media">&times;</button>
+                <div id="media-preview-container" style="display: none; align-items: center; gap: 12px; margin-bottom: 15px; padding: 10px 18px; background: rgba(255,255,255,0.05); border-radius: 16px; border: 1px solid var(--glass-border); width: fit-content;">
+                    <img id="preview-img" src="" style="width: 48px; height: 48px; object-fit: cover; border-radius: 10px;">
+                    <span id="preview-label" style="font-size: 13px; color: var(--text-dim);">Media attached</span>
+                    <button id="remove-preview-btn" style="background: none; border: none; color: #ff6b6b; font-size: 20px; cursor: pointer; margin-left: 10px;">&times;</button>
                 </div>
 
-                <!-- NEW LIVE CONTROL BAR (EXACT MATCH TO YOUR IMAGE - NO EMOJIS, PURE SVG) -->
-                <div id="live-orb-ui" class="live-control-bar">
-                    <!-- 1. Video Camera Button -->
-                    <button id="gola-cam-btn" class="live-circle-btn" title="Toggle Camera">
+                <!-- LIVE ORB UI (GEMINI GOLA STYLE: Camera + Screen Share + Gemini Gola + Mic + Close) -->
+                <div id="live-orb-ui" class="live-orb-overlay">
+                    <button id="gola-cam-btn" class="orb-round-btn" title="Camera On/Off">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="2" y="5" width="14" height="14" rx="4" ry="4"></rect>
-                            <path d="M19 9v6"></path>
+                            <line x1="19" y1="9" x2="19" y2="15"></line>
                         </svg>
                     </button>
 
-                    <!-- 2. Screen Share / Upload Button -->
-                    <button id="gola-screen-btn" class="live-circle-btn" title="Share Screen or Frame">
+                    <button id="gola-screen-btn" class="orb-round-btn" title="Share Screen">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="4" width="18" height="16" rx="5" ry="5"></rect>
                             <line x1="12" y1="16" x2="12" y2="8"></line>
@@ -170,21 +168,18 @@
                         </svg>
                     </button>
 
-                    <!-- 3. Center White-Blue Gradient Pill -->
-                    <div id="center-live-pill" class="live-center-pill"></div>
+                    <div class="jamni-gola"></div>
 
-                    <!-- 4. Microphone Button -->
-                    <button id="gola-mic-btn" class="live-circle-btn" title="Mute / Unmute Mic">
+                    <button id="gola-mic-btn" class="orb-round-btn" title="Mute/Unmute Mic">
                         <svg id="gola-mic-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="9" y="2" width="6" height="11" rx="3" ry="3"></rect>
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="22"></line>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
                         </svg>
                     </button>
 
-                    <!-- 5. Close X Button -->
-                    <button id="gola-close-btn" class="live-circle-btn" title="End Live Session">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <button id="gola-close-btn" class="orb-round-btn" title="Close Live Mode">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
@@ -193,9 +188,9 @@
 
                 <canvas id="capture-canvas" style="display: none;"></canvas>
                 <input type="file" id="input-file-camera" accept="image/*" capture="environment" style="display:none;">
-                <input type="file" id="input-file-gallery" accept="image/*,.pdf,.txt,.py,.js,.html,.css,.json,.csv" style="display:none;">
+                <input type="file" id="input-file-gallery" accept="image/*" style="display:none;">
 
-                <!-- PLUS BUTTON DROPDOWN MENU -->
+                <!-- PLUS BUTTON DROPDOWN MENU (Camera + Gallery + Share Screen) -->
                 <div id="plus-popover-menu" class="plus-popover-menu">
                     <button class="plus-menu-item" id="opt-camera">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -203,20 +198,20 @@
                     </button>
                     <button class="plus-menu-item" id="opt-gallery">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                        Gallery / File
+                        Gallery
                     </button>
                     <button class="plus-menu-item" id="opt-screenshare">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="4" ry="4"/><line x1="12" y1="16" x2="12" y2="8"/><polyline points="8.5 11.5 12 8 15.5 11.5"/></svg>
                         Share Screen
                     </button>
                 </div>
 
-                <!-- SEARCH ENGINE INPUT CAPSULE -->
-                <div class="search-engine-outer">
+                <!-- SEARCH ENGINE INPUT CAPSULE (PROPERLY ALIGNED LAYOUT) -->
+                <div class="search-capsule-outer">
                     <div class="iphone-glass search-bar-container">
                         <input type="text" id="ai-chat-input" class="search-engine-input" placeholder="Ask Mani's AI...">
-                        <div class="search-bar-actions">
-                            <!-- LIVE BUTTON (Kept inside search bar as requested) -->
+                        <div class="search-buttons-row">
+                            <!-- LIVE BUTTON -->
                             <button id="btn-live-toggle" class="live-wave-btn" title="Live Mode Toggle">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="8" y1="8" x2="8" y2="16"></line><line x1="12" y1="5" x2="12" y2="19"></line><line x1="16" y1="9" x2="16" y2="15"></line></svg>
                             </button>
@@ -229,13 +224,13 @@
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
                             </button>
                             <!-- SEND BUTTON -->
-                            <button id="send-ai-btn" class="send-prompt-btn" title="Send Prompt">
+                            <button id="send-ai-btn" title="Send Prompt">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                             </button>
                         </div>
                     </div>
-                    <div id="live-tools-panel" class="iphone-glass clear-chat-panel">
-                        <button id="btn-clear" class="clear-chat-btn">
+                    <div id="live-tools-panel" class="iphone-glass" style="display: none; padding: 14px 24px; border-radius: 20px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15); align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; width: 100%; margin-top: 6px;">
+                        <button id="btn-clear" style="background: rgba(255,80,80,0.15); border: 1px solid rgba(255,80,80,0.3); color: #ff6b6b; padding: 10px 20px; border-radius: 30px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; transition: all 0.2s;">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                             Clear Chat
                         </button>
@@ -309,7 +304,7 @@
                 <div style="display: flex; justify-content: center;">
                     <div class="iphone-glass card dev-premium-card" style="position: relative;">
                         <img src="images/mani-devloper.jpeg" class="gallery-photo" alt="Money Bagga - Developer" onerror="this.onerror=null; this.src='https://via.placeholder.com/600x400/333/fff?text=Add+Photo+Here';">
-                        <div class="dev-name-overlay"><span>MONEY BAGGA</span><span class="dev-badge">CREATOR</span></div>
+                        <div class="dev-name-overlay"><span>MONEY BAGGA</span><span class="dev-badge">● CREATOR</span></div>
                     </div>
                 </div>
             </section>
@@ -323,10 +318,11 @@
                 </div>
             </section>
 
-            <!-- Team Section -->
+            <!-- Team Section (WITH PHOTO SUPPORT FOR ALL 4 MEMBERS) -->
             <section id="team" class="section-padding reveal-up">
                 <div class="center-title"><span class="tagline">Leadership</span><h2>Meet the MANI Minds</h2></div>
                 <div class="grid-4">
+                    <!-- TEAM MEMBER 1: images/team1.jpg -->
                     <div class="iphone-glass card team-card">
                         <div class="team-photo-box">
                             <img src="images/team1.jpg" alt="Mani Singh" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -334,6 +330,7 @@
                         </div>
                         <h4>Mani Singh</h4><p>Founder & Architect</p>
                     </div>
+                    <!-- TEAM MEMBER 2: images/team2.jpg -->
                     <div class="iphone-glass card team-card">
                         <div class="team-photo-box">
                             <img src="images/team2.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -341,6 +338,7 @@
                         </div>
                         <h4>Team Expert</h4><p>Integration Specialist</p>
                     </div>
+                    <!-- TEAM MEMBER 3: images/team3.jpg -->
                     <div class="iphone-glass card team-card">
                         <div class="team-photo-box">
                             <img src="images/team3.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -348,6 +346,7 @@
                         </div>
                         <h4>Team Expert</h4><p>AI Engineer</p>
                     </div>
+                    <!-- TEAM MEMBER 4: images/team4.jpg -->
                     <div class="iphone-glass card team-card">
                         <div class="team-photo-box">
                             <img src="images/team4.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -392,7 +391,7 @@
                 <div class="social-row"><span>LinkedIn</span> <span>Twitter / X</span> <span>Instagram</span></div>
             </div>
             <div class="footer-bottom">
-                <p>© 2026 Developed by Money bagga Haroli, District Una, Himachal Pradesh Pincode 177220</p>
+                <p>© 2026 Developed by Money bagga  Haroli, District Una, Himachal Pradesh Pincode 177220 </p>
                 <div class="footer-links"><span>Privacy Policy</span> <span>Terms of Service</span></div>
             </div>
         </footer>
@@ -423,7 +422,7 @@
         </div>
     </div>
 
-    <!-- External JS Connected -->
-    <script src="script.js" defer></script>
+    <!-- Connected External JS -->
+    <script src="script.js"></script>
 </body>
 </html>
