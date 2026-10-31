@@ -3,33 +3,53 @@ function closeMobileNav() {
 }
 
 // =====================================================
-// .env CONFIGURATION LOADER (WITH AUTOMATIC FALLBACK)
+// SECURE .env CONFIGURATION LOADER (NO HARDCODED SECRETS IN JS)
 // =====================================================
 const ENV_CONFIG = {
-    API_KEY: "sk-mani-8200689f0cd246c0",
-    API_ENDPOINT: "https://ai-1-ak1q.onrender.com/v1/chat/completions",
-    AI_MODEL: "mani-core-v1.2",
-    VISION_MODEL: "meta/llama-3.2-90b-vision-instruct",
-    ADMIN_USER: "bagga",
-    ADMIN_PASS: "iphonex0421&"
+    API_KEY: "",
+    API_ENDPOINT: "",
+    AI_MODEL: "",
+    VISION_MODEL: "",
+    ADMIN_USER: "",
+    ADMIN_PASS: ""
 };
 
 async function loadEnvConfig() {
-    try {
-        const res = await fetch('.env', { cache: 'no-store' });
-        if (!res.ok) return;
-        const text = await res.text();
-        text.split(/\r?\n/).forEach(line => {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return;
-            const idx = trimmed.indexOf('=');
-            const key = trimmed.slice(0, idx).trim();
-            const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
-            if (key && val) ENV_CONFIG[key] = val;
-        });
-    } catch (e) {
-        // Fallback config in ENV_CONFIG is used automatically
+    const pathsToTry = ['.env', './.env'];
+    for (const path of pathsToTry) {
+        try {
+            const res = await fetch(`${path}?t=${Date.now()}`, { cache: 'no-store' });
+            if (!res.ok) continue;
+            const text = (await res.text()).replace(/^\uFEFF/, '').trim();
+            if (!text) continue;
+
+            // अगर बैकएंड या फाइल से JSON फॉर्मेट आता है तो उसे भी सपोर्ट करेगा
+            if (text.startsWith('{')) {
+                const json = JSON.parse(text);
+                Object.keys(json).forEach(k => {
+                    if (json[k] !== undefined && json[k] !== null) {
+                        ENV_CONFIG[k.trim()] = String(json[k]).trim();
+                    }
+                });
+                if (ENV_CONFIG.API_KEY) return true;
+            }
+
+            // .env फाइल (KEY=VALUE) को रीड और कनेक्ट करना
+            text.split(/\r?\n/).forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return;
+                const idx = trimmed.indexOf('=');
+                const key = trimmed.slice(0, idx).trim();
+                const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+                if (key) ENV_CONFIG[key] = val;
+            });
+
+            if (ENV_CONFIG.API_KEY) return true;
+        } catch (e) {
+            // अगली लोकेशन ट्राई करें
+        }
     }
+    return false;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -150,7 +170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         toast.innerHTML = icon + message;
         container.appendChild(toast);
         setTimeout(() => { toast.classList.add('show'); }, 10);
-        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 2000);
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 2500);
     }
 
     // Contact Form
@@ -168,7 +188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         contactForm.reset();
     });
 
-    // Secret Login & Admin (Connected to .env)
+    // Secret Login & Admin (Strictly Connected to .env)
     const loginTrigger = document.getElementById('secretLoginTrigger');
     const loginModal = document.getElementById('secretLoginModal');
     const closeLogin = document.getElementById('closeLoginModal');
@@ -193,13 +213,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    submitLogin.addEventListener('click', () => {
+    submitLogin.addEventListener('click', async () => {
+        if (!ENV_CONFIG.ADMIN_USER || !ENV_CONFIG.ADMIN_PASS) {
+            await loadEnvConfig();
+        }
         const user = document.getElementById('loginUser').value.trim();
         const pass = document.getElementById('loginPass').value.trim();
-        if (user === ENV_CONFIG.ADMIN_USER && pass === ENV_CONFIG.ADMIN_PASS) {
+        if (ENV_CONFIG.ADMIN_USER && user === ENV_CONFIG.ADMIN_USER && pass === ENV_CONFIG.ADMIN_PASS) {
             showToast("Admin Verified. Unlocking Panel...", "success");
             setTimeout(() => { loginModal.style.display = 'none'; mainWebsite.style.display = 'none'; adminDashboard.style.display = 'flex'; loadAdminMessages(); }, 1000);
-        } else { showToast("Invalid User or Password!", "error"); }
+        } else {
+            showToast("Invalid User or Password!", "error");
+        }
     });
 
     logoutBtn.addEventListener('click', () => { adminDashboard.style.display = 'none'; mainWebsite.style.display = 'block'; showToast("Logged out successfully.", "success"); window.scrollTo(0,0); });
@@ -245,14 +270,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     let isCameraVisible = false;
     let isScreenSharing = false;
 
-    btnGalleryPlus.addEventListener('click', (e) => { e.stopPropagation(); plusMenu.style.display = (plusMenu.style.display === 'flex') ? 'none' : 'flex'; });
+    btnGalleryPlus.addEventListener('click', (e) => {
+        e.stopPropagation();
+        plusMenu.style.display = (plusMenu.style.display === 'flex') ? 'none' : 'flex';
+    });
     document.addEventListener('click', () => { plusMenu.style.display = 'none'; });
 
-    document.getElementById('opt-camera').addEventListener('click', () => { plusMenu.style.display = 'none'; triggerCamera(); });
-    document.getElementById('opt-gallery').addEventListener('click', () => { plusMenu.style.display = 'none'; inputFileGallery.click(); });
-    document.getElementById('opt-screenshare').addEventListener('click', () => { plusMenu.style.display = 'none'; triggerScreenShare(); });
+    document.getElementById('opt-camera').addEventListener('click', (e) => {
+        e.stopPropagation();
+        plusMenu.style.display = 'none';
+        triggerCamera();
+    });
+    document.getElementById('opt-gallery').addEventListener('click', (e) => {
+        e.stopPropagation();
+        plusMenu.style.display = 'none';
+        inputFileGallery.click();
+    });
+    document.getElementById('opt-screenshare').addEventListener('click', (e) => {
+        e.stopPropagation();
+        plusMenu.style.display = 'none';
+        triggerScreenShare();
+    });
 
-    // Optimize Gallery Photos to clean HD JPEG for fast & error-free vision analysis
     function compressGalleryImage(dataUrl, callback) {
         const img = new Image();
         img.onload = () => {
@@ -404,6 +443,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function closeCameraUI() {
         if (currentLiveStream) { currentLiveStream.getTracks().forEach(track => track.stop()); currentLiveStream = null; }
+        videoElement.srcObject = null;
         liveCameraContainer.style.display = 'none';
         isCameraVisible = false;
         isScreenSharing = false;
@@ -451,18 +491,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function triggerCamera() {
         try {
             if (currentLiveStream) currentLiveStream.getTracks().forEach(track => track.stop());
-            currentLiveStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
+            currentLiveStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode }, audio: false });
             isScreenSharing = false;
             videoElement.srcObject = currentLiveStream;
+            videoElement.style.objectFit = "cover";
             videoElement.style.transform = currentFacingMode === "user" ? "scaleX(-1)" : "scaleX(1)";
-            await videoElement.play();
+            await videoElement.play().catch(() => {});
             liveCameraContainer.style.display = 'block';
             switchCameraBtn.style.display = 'flex';
             isCameraVisible = true;
             golaCamBtn.classList.add('active-feature');
             golaScreenBtn.classList.remove('active-feature');
 
-            // Automatically describe what the camera sees when turned on
             setTimeout(() => {
                 const frame = getCurrentVideoFrame();
                 if (frame) {
@@ -474,35 +514,59 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    // FIXED SCREEN SHARE: Gallery disabled, directly shares Window / Tab / Screen
     async function triggerScreenShare() {
-        if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-            try {
-                if (currentLiveStream) currentLiveStream.getTracks().forEach(track => track.stop());
-                currentLiveStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                isScreenSharing = true;
-                videoElement.srcObject = currentLiveStream;
-                videoElement.style.transform = "scaleX(1)";
-                await videoElement.play();
-                liveCameraContainer.style.display = 'block';
-                switchCameraBtn.style.display = 'none';
-                isCameraVisible = true;
-                golaScreenBtn.classList.add('active-feature');
-                golaCamBtn.classList.remove('active-feature');
+        const displayMediaFn = (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)
+            ? navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices)
+            : (navigator.getDisplayMedia ? navigator.getDisplayMedia.bind(navigator) : null);
 
-                // Automatically analyze the shared screen and speak
-                setTimeout(() => {
-                    const frame = getCurrentVideoFrame();
-                    if (frame) {
-                        processPrompt("Analyze my shared screen and explain what is shown on it.", frame, true, true);
-                    }
-                }, 900);
+        if (!displayMediaFn) {
+            showToast("Screen sharing is not supported on this browser.", "error");
+            return;
+        }
 
-                currentLiveStream.getVideoTracks()[0].onended = () => closeCameraUI();
-            } catch (err) {
-                inputFileGallery.click();
+        try {
+            const screenStream = await displayMediaFn({
+                video: { cursor: "always" },
+                audio: false
+            });
+
+            if (currentLiveStream) {
+                currentLiveStream.getTracks().forEach(track => track.stop());
             }
-        } else {
-            inputFileGallery.click();
+
+            currentLiveStream = screenStream;
+            isScreenSharing = true;
+            videoElement.srcObject = currentLiveStream;
+            videoElement.style.objectFit = "contain";
+            videoElement.style.transform = "scaleX(1)";
+            liveCameraContainer.style.display = 'block';
+            switchCameraBtn.style.display = 'none';
+            isCameraVisible = true;
+            golaScreenBtn.classList.add('active-feature');
+            golaCamBtn.classList.remove('active-feature');
+
+            await videoElement.play().catch(() => {});
+            showToast("Screen sharing active!", "success");
+
+            setTimeout(() => {
+                const frame = getCurrentVideoFrame();
+                if (frame) {
+                    processPrompt("Analyze my shared screen and explain what is shown on it.", frame, true, true);
+                }
+            }, 1000);
+
+            const videoTrack = currentLiveStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.onended = () => {
+                    closeCameraUI();
+                    showToast("Screen sharing stopped.", "success");
+                };
+            }
+        } catch (err) {
+            if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
+                showToast("Screen share error: " + (err.message || "Permission denied"), "error");
+            }
         }
     }
 
@@ -519,12 +583,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnMic.addEventListener('click', () => { if (recognition) { btnMic.style.color = '#ff4d4d'; try { recognition.start(); } catch(e){} } });
 
     /* ========================================================
-       API ENGINE (FAST PAYLOAD + GALLERY/CAMERA/SCREEN VISION)
+       API ENGINE (READS STRICTLY FROM .env CONFIG)
        ======================================================== */
+    async function sendModelRequest(endpoint, apiKey, modelName, messages) {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'x-api-key': apiKey,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: modelName,
+                messages: messages,
+                max_tokens: 1024,
+                temperature: 0.5
+            })
+        });
+        const data = await response.json();
+        return { response, data };
+    }
+
     async function callAIAPI(promptText, base64Img = null) {
-        const apiKey = ENV_CONFIG.API_KEY;
-        const endpoint = ENV_CONFIG.API_ENDPOINT;
-        const modelName = base64Img ? (ENV_CONFIG.VISION_MODEL || "meta/llama-3.2-90b-vision-instruct") : (ENV_CONFIG.AI_MODEL || "mani-core-v1.2");
+        if (!ENV_CONFIG.API_KEY || !ENV_CONFIG.API_ENDPOINT) {
+            await loadEnvConfig();
+        }
+
+        const apiKey = (ENV_CONFIG.API_KEY || "").trim();
+        const endpoint = (ENV_CONFIG.API_ENDPOINT || "").trim();
+        const primaryModel = base64Img
+            ? (ENV_CONFIG.VISION_MODEL || ENV_CONFIG.AI_MODEL).trim()
+            : (ENV_CONFIG.AI_MODEL || "").trim();
+
+        if (!apiKey || !endpoint) {
+            throw new Error(".env फाइल लोड नहीं हो पाई या उसमें API_KEY मौजूद नहीं है।");
+        }
 
         let messages = [];
         if (base64Img) {
@@ -544,29 +637,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             ];
         }
 
-        const requestBody = {
-            model: modelName,
-            messages: messages,
-            max_tokens: 1024,
-            temperature: 0.5
-        };
-
         try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
-            });
-            const data = await response.json();
-            if (data.error) { throw new Error(typeof data.error === 'string' ? data.error : (data.error.message || "API Error")); }
-            if (response.ok && data.choices && data.choices.length > 0) { return data.choices[0].message.content; }
+            let { response, data } = await sendModelRequest(endpoint, apiKey, primaryModel, messages);
+
+            if ((!response.ok || data.error) && base64Img && ENV_CONFIG.AI_MODEL && primaryModel !== ENV_CONFIG.AI_MODEL) {
+                const retry = await sendModelRequest(endpoint, apiKey, ENV_CONFIG.AI_MODEL.trim(), messages);
+                response = retry.response;
+                data = retry.data;
+            }
+
+            if (data && data.error) {
+                throw new Error(typeof data.error === 'string' ? data.error : (data.error.message || "API Error"));
+            }
+            if (response.ok && data && data.choices && data.choices.length > 0) {
+                return data.choices[0].message.content;
+            }
+            if (data && (data.reply || data.response || data.content)) {
+                return data.reply || data.response || data.content;
+            }
             throw new Error(`API Error (Status ${response.status})`);
         } catch (e) {
             console.error("API Fetch Error:", e);
-            throw new Error(e.message || "Unable to generate response. Check your internet connection or API Key.");
+            throw new Error(e.message || "Unable to generate response. Check your .env or backend server.");
         }
     }
 
