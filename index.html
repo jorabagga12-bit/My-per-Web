@@ -1,61 +1,429 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head> 
+    <meta name="google-site-verification" content="Or5JbtfQH0gGANckua64EHZYJ_xr-wmy5QeWB-W5O2w" />
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Money Singh - 3D Portfolio Showcase</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mani AI - Himachal Pradesh's AI Platform</title>
+    <meta name="description" content="Mani AI is an advanced AI automation and chat platform proudly developed in Haroli, District Una, Himachal Pradesh, India.">
+    <meta name="keywords" content="MONEY BAGGA AI, AI Himachal Pradesh, Developer Haroli, Una AI Developer, AI Chatbot India, bagga.antideploy.com">
+    <meta name="author" content="MONEY BAGGA (Haroli, Una, HP)">
+    <link rel="canonical" href="https://bagga.antideploy.com" />
+
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Mani AI - Developed in Haroli, Una (Himachal Pradesh)" />
+    <meta property="og:description" content="Mani AI - India's local AI automation and chat platform created by a developer from Haroli, District Una, HP." />
+    <meta property="og:url" content="https://bagga.antideploy.com" />
+    <meta property="og:site_name" content="Mani AI" />
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/jpeg" href="images/aster.jpg">
+    <link rel="apple-touch-icon" href="images/aster.jpg">
+
+    <!-- External CSS Connected -->
     <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Mani AI",
+      "url": "https://bagga.antideploy.com",
+      "operatingSystem": "All",
+      "applicationCategory": "BusinessApplication",
+      "description": "Mani AI is an AI automation and chat platform developed by a developer from Haroli, District Una, Himachal Pradesh, India.",
+      "author": {
+        "@type": "Person",
+        "name": "Money Bagga",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Haroli",
+          "addressRegion": "District Una, Himachal Pradesh",
+          "addressCountry": "India"
+        }
+      }
+    }
+    </script>
 </head>
 <body>
+    <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Background 3D Canvas Container -->
-    <div id="webgl-container"></div>
+    <!-- UNIVERSE STARS CANVAS (Brahmand Background) -->
+    <canvas id="stars-canvas"></canvas>
 
-    <!-- UI Overlay Header -->
-    <header class="header">
-        <div class="logo">MONEY SINGH <span class="dot">.</span></div>
-        <nav class="nav-links">
-            <a href="#about">TECH SPECS</a>
-            <a href="#interactive">360° VIEW</a>
-            <a href="#contact" class="highlight-btn">+91 8219693695</a>
-        </nav>
-    </header>
+    <!-- Ambient Blobs -->
+    <div class="ambient-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="noise-texture"></div>
+    </div>
 
-    <!-- Main Hero Section / Overlay Details -->
-    <main class="hero-content">
-        <div class="text-block">
-            <span class="badge">NEXT-GEN DEVELOPER PORTFOLIO</span>
-            <h1 class="glitch-title">PRECISION <br><span>DESIGN</span></h1>
-            <p class="subtitle">Interactive 3D Web Experiences, Full-Stack Architecture, and Mobile Automation Expert.</p>
+    <!-- Mobile Navigation Overlay -->
+    <div id="mobileNavOverlay" class="mobile-nav-overlay">
+        <button class="mobile-nav-close" id="mobileNavClose">&times;</button>
+        <a href="#" class="active" onclick="closeMobileNav()">Home</a>
+        <a href="#mani-ai-chat" onclick="closeMobileNav()">Mani's AI</a>
+        <a href="#case-studies" onclick="closeMobileNav()">Case Studies</a>
+        <a href="#gallery" onclick="closeMobileNav()">Developer</a>
+        <a href="#team" onclick="closeMobileNav()">Team</a>
+        <a href="#contact" onclick="closeMobileNav()">Get Template</a>
+    </div>
+
+    <!-- Main Website Wrap -->
+    <div id="mainWebsite">
+        <div class="navbar-wrapper">
+            <nav class="iphone-glass navbar">
+                <a id="secretLoginTrigger" class="logo">Money Bagga</a>
+                <div class="nav-links">
+                    <a href="#" class="nav-btn active">Home</a>
+                    <a href="#mani-ai-chat" class="nav-btn">Mani's AI</a>
+                    <a href="#case-studies" class="nav-btn">Case Studies</a>
+                    <a href="#gallery" class="nav-btn">Developer</a>
+                    <a href="#team" class="nav-btn">Team</a>
+                </div>
+                <a href="#contact" class="btn-glass" style="padding: 10px 24px; font-size: 14px;">Get Template</a>
+                <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open Menu">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+            </nav>
         </div>
 
-        <!-- Interactive Spec Cards resembling Puma/BMW layout -->
-        <div class="specs-grid">
-            <div class="spec-card">
-                <h3>360° INTERACTIVE</h3>
-                <p>Click & Drag to rotate card. Click to Zoom.</p>
+        <main class="desktop-wrapper">
+
+            <!-- HERO SECTION (with Background Video) -->
+            <section class="hero">
+                <div class="hero-video-bg">
+                    <video autoplay muted loop playsinline id="hero-video">
+                        <source src="images/hero-bg.mp4" type="video/mp4">
+                    </video>
+                    <div class="hero-video-overlay"></div>
+                </div>
+
+                <div class="hero-content">
+                    <div class="iphone-glass hero-badge">
+                        <span class="pulse-dot"></span> MANI AUTOMATION PARTNER
+                    </div>
+                    <h1>Intelligent Automation<br><span class="text-gradient">for Modern Teams</span></h1>
+                    <p>We build AI-powered automation systems that eliminate manual work, reduce costs, and multiply your business performance instantly.</p>
+                    <div class="hero-buttons">
+                        <a href="#contact" class="btn-white">Get this Template</a>
+                        <a href="#mani-ai-chat" class="btn-glass">Work with Us</a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Chat / Search Engine Section -->
+            <section id="mani-ai-chat" class="section-padding reveal-up ai-chat-section">
+                <div class="center-title" style="margin-bottom: 30px;">
+                    <h2 style="font-size: 38px; font-weight: 500;">What are you working on?</h2>
+                </div>
+
+                <!-- Live Camera / Screen Share View UI -->
+                <div id="live-camera-container" class="live-camera-box">
+                    <video id="webcam-video" autoplay playsinline muted></video>
+                    <div class="camera-bottom-bar">
+                        <button id="switch-camera-btn" class="cam-action-pill">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            <span>Swap Camera</span>
+                        </button>
+                    </div>
+                    <button id="close-camera-btn" class="cam-close-circle" aria-label="Close Preview">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+
+                <!-- Chat Output Screen Container -->
+                <div id="chat-box-wrapper" class="chat-box-wrapper">
+                    <div id="ai-chat-history"></div>
+                    <button id="scroll-bottom-btn" title="Scroll Down">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                    </button>
+                </div>
+
+                <!-- Attached Media Preview Bar -->
+                <div id="media-preview-container" class="media-preview-bar">
+                    <img id="preview-img" src="" alt="Preview">
+                    <span id="preview-label">Media attached</span>
+                    <button id="remove-preview-btn" aria-label="Remove Media">&times;</button>
+                </div>
+
+                <!-- NEW LIVE CONTROL BAR (EXACT MATCH TO YOUR IMAGE - NO EMOJIS, PURE SVG) -->
+                <div id="live-orb-ui" class="live-control-bar">
+                    <!-- 1. Video Camera Button -->
+                    <button id="gola-cam-btn" class="live-circle-btn" title="Toggle Camera">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="5" width="14" height="14" rx="4" ry="4"></rect>
+                            <path d="M19 9v6"></path>
+                        </svg>
+                    </button>
+
+                    <!-- 2. Screen Share / Upload Button -->
+                    <button id="gola-screen-btn" class="live-circle-btn" title="Share Screen or Frame">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="16" rx="5" ry="5"></rect>
+                            <line x1="12" y1="16" x2="12" y2="8"></line>
+                            <polyline points="8.5 11.5 12 8 15.5 11.5"></polyline>
+                        </svg>
+                    </button>
+
+                    <!-- 3. Center White-Blue Gradient Pill -->
+                    <div id="center-live-pill" class="live-center-pill"></div>
+
+                    <!-- 4. Microphone Button -->
+                    <button id="gola-mic-btn" class="live-circle-btn" title="Mute / Unmute Mic">
+                        <svg id="gola-mic-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="2" width="6" height="11" rx="3" ry="3"></rect>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="22"></line>
+                        </svg>
+                    </button>
+
+                    <!-- 5. Close X Button -->
+                    <button id="gola-close-btn" class="live-circle-btn" title="End Live Session">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <canvas id="capture-canvas" style="display: none;"></canvas>
+                <input type="file" id="input-file-camera" accept="image/*" capture="environment" style="display:none;">
+                <input type="file" id="input-file-gallery" accept="image/*,.pdf,.txt,.py,.js,.html,.css,.json,.csv" style="display:none;">
+
+                <!-- PLUS BUTTON DROPDOWN MENU -->
+                <div id="plus-popover-menu" class="plus-popover-menu">
+                    <button class="plus-menu-item" id="opt-camera">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        Camera
+                    </button>
+                    <button class="plus-menu-item" id="opt-gallery">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        Gallery / File
+                    </button>
+                    <button class="plus-menu-item" id="opt-screenshare">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        Share Screen
+                    </button>
+                </div>
+
+                <!-- SEARCH ENGINE INPUT CAPSULE -->
+                <div class="search-engine-outer">
+                    <div class="iphone-glass search-bar-container">
+                        <input type="text" id="ai-chat-input" class="search-engine-input" placeholder="Ask Mani's AI...">
+                        <div class="search-bar-actions">
+                            <!-- LIVE BUTTON (Kept inside search bar as requested) -->
+                            <button id="btn-live-toggle" class="live-wave-btn" title="Live Mode Toggle">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="8" y1="8" x2="8" y2="16"></line><line x1="12" y1="5" x2="12" y2="19"></line><line x1="16" y1="9" x2="16" y2="15"></line></svg>
+                            </button>
+                            <!-- PLUS BUTTON -->
+                            <button id="btn-gallery-plus" class="search-icon-btn" title="Attach Media">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            </button>
+                            <!-- MIC BUTTON -->
+                            <button id="btn-mic" class="search-icon-btn" title="Voice Search">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                            </button>
+                            <!-- SEND BUTTON -->
+                            <button id="send-ai-btn" class="send-prompt-btn" title="Send Prompt">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="live-tools-panel" class="iphone-glass clear-chat-panel">
+                        <button id="btn-clear" class="clear-chat-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            Clear Chat
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Why Choose Us -->
+            <section class="section-padding reveal-up">
+                <div class="center-title">
+                    <span class="tagline">The Mani Value</span>
+                    <h2>Why Choose Us?</h2>
+                    <p>We design solutions aligned strictly with your revenue goals and business metrics, not just code.</p>
+                </div>
+                <div class="grid-3">
+                    <div class="iphone-glass card"><div class="anim-icon-wrapper icon-orb"><div class="orb-ring"></div><div class="orb-core"></div></div><h3>Business-First Strategy</h3><p>We analyze your bottlenecks before writing a single line of code to ensure maximum ROI.</p></div>
+                    <div class="iphone-glass card"><div class="anim-icon-wrapper icon-rings"><div class="ring-a"></div><div class="ring-b"></div></div><h3>End-to-End Execution</h3><p>From initial strategy to final deployment and ongoing maintenance, we handle it all.</p></div>
+                    <div class="iphone-glass card"><div class="anim-icon-wrapper icon-morph"><div class="morph-shape"></div></div><h3>Custom-Built Systems</h3><p>No cookie-cutter templates. Every automation workflow is tailored to your unique operations.</p></div>
+                </div>
+            </section>
+
+            <!-- Services Section -->
+            <section id="services" class="section-padding reveal-up">
+                <div class="center-title"><span class="tagline">Our Services</span><h2>Our AI-Driven Solutions</h2></div>
+                <div class="grid-2">
+                    <div class="iphone-glass card service-card"><div class="service-ring-wrapper"><div class="outer-ring"></div><div class="inner-ring"></div><div class="ring-center-dot"></div></div><div class="mock-workflow"><div class="wf-line"></div><div class="wf-line short"></div><div class="wf-nodes"><div class="node">API</div><div class="connector"></div><div class="node">DB</div><div class="connector"></div><div class="node">UI</div></div></div><div><h3>AI Workflow Automation</h3><p>Automate repetitive tasks across departments using intelligent triggers and API connections.</p></div></div>
+                    <div class="iphone-glass card service-card"><div class="service-ring-wrapper"><div class="outer-ring"></div><div class="inner-ring"></div><div class="ring-center-dot"></div></div><div class="mock-chat"><div class="chat-msg user">Tell me about MANI systems.</div><div class="chat-msg bot">MANI is a next-gen AI automation agency. How can I assist your workflow today?</div></div><div><h3>AI Chatbots & Agents</h3><p>24/7 customer support, lead qualification, and booking systems built on advanced LLMs.</p></div></div>
+                    <div class="iphone-glass card service-card"><div class="service-ring-wrapper"><div class="outer-ring"></div><div class="inner-ring"></div><div class="ring-center-dot"></div></div><div class="mock-crm"><div class="crm-header"><div class="crm-avatar"></div><div class="crm-avatar"></div><div class="crm-avatar"></div></div><div class="crm-progress-bg"><div class="crm-progress-fill"></div></div></div><div><h3>CRM & Sales Automation</h3><p>Pipeline management, personalized email sequences, and automatic real-time data entry.</p></div></div>
+                    <div class="iphone-glass card service-card"><div class="service-ring-wrapper"><div class="outer-ring"></div><div class="inner-ring"></div><div class="ring-center-dot"></div></div><div class="mock-graph"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div><div><h3>AI Data & Reporting</h3><p>Automated visual dashboards, business intelligence, and real-time performance tracking.</p></div></div>
+                </div>
+            </section>
+
+            <!-- Our Process -->
+            <section class="section-padding reveal-up">
+                <div class="center-title"><span class="tagline">Our Process</span><h2>How We Work</h2></div>
+                <div class="process-layout">
+                    <div class="iphone-glass card process-main"><div class="orbit-system"><div class="core">AI</div><div class="satellite"></div></div><h3>Automation Blueprint</h3><p>We design a highly detailed automation architecture aligned specifically with your company's KPIs.</p></div>
+                    <div class="process-list">
+                        <div class="iphone-glass card process-step"><div class="step-number">01</div><div><h4>Discovery & Audit</h4><p>Deep analysis of your current manual bottlenecks.</p></div></div>
+                        <div class="iphone-glass card process-step"><div class="step-number">02</div><div><h4>Build & Integrate</h4><p>High-speed development and secure API connections.</p></div></div>
+                        <div class="iphone-glass card process-step"><div class="step-number">03</div><div><h4>Test & Deploy</h4><p>Rigorous stress testing followed by team training.</p></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Case Studies -->
+            <section id="case-studies" class="section-padding reveal-up">
+                <div class="center-title"><span class="tagline">Portfolio</span><h2>What We've Built</h2></div>
+                <div class="iphone-glass card case-study-card">
+                    <div class="case-visual-side"><div class="hologram"></div><div class="hologram-core"></div></div>
+                    <div class="case-content-side">
+                        <span class="project-tag">Real Estate AI Agent</span>
+                        <h3>AI Property Inquiry Chatbot for Global Real Estate Firms</h3>
+                        <p>An intelligent LLM-powered chatbot that qualifies property inquiries, answers complex data questions, and schedules viewings automatically without human intervention.</p>
+                        <div class="case-stats"><div class="stat"><h4>3x</h4><p>Lead Response</p></div><div class="stat"><h4>+40%</h4><p>Conversion</p></div><div class="stat"><h4>24/7</h4><p>Active Support</p></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tech Stack Marquee -->
+            <section class="section-padding reveal-up">
+                <div class="center-title"><span class="tagline">Integrations</span><h2>Technology Ecosystem</h2></div>
+                <div class="marquee-container"><div class="marquee-track">
+                    <div class="tech-pill">ActiveCampaign</div><div class="tech-pill">Zapier</div><div class="tech-pill">OpenAI</div><div class="tech-pill">Make.com</div><div class="tech-pill">Salesforce</div><div class="tech-pill">Zoho CRM</div><div class="tech-pill">AWS Cloud</div>
+                </div></div>
+            </section>
+
+            <!-- Developer Section -->
+            <section id="gallery" class="section-padding reveal-up">
+                <div class="center-title"><span class="tagline">Developer</span><h2>Money Bagga</h2></div>
+                <div style="display: flex; justify-content: center;">
+                    <div class="iphone-glass card dev-premium-card" style="position: relative;">
+                        <img src="images/mani-devloper.jpeg" class="gallery-photo" alt="Money Bagga - Developer" onerror="this.onerror=null; this.src='https://via.placeholder.com/600x400/333/fff?text=Add+Photo+Here';">
+                        <div class="dev-name-overlay"><span>MONEY BAGGA</span><span class="dev-badge">CREATOR</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reviews -->
+            <section class="section-padding reveal-up">
+                <div class="center-title"><span class="tagline">Reviews</span><h2>What They're Saying</h2></div>
+                <div class="grid-2">
+                    <div class="iphone-glass card"><div class="quote-mark">"</div><p class="testimonial-text">We were spending hours on repetitive manual tasks. MANI's automation system saved us 30+ hours per week instantly. Highly recommended!</p><div class="client-info"><div class="client-avatar">MT</div><div><h4>Mani Team Member</h4><p style="font-size:14px;">Automation Specialist</p></div></div></div>
+                    <div class="iphone-glass card"><div class="quote-mark">"</div><p class="testimonial-text">The ROI was faster than we ever expected. The glass UI and robust backend system continues to scale perfectly with our business growth.</p><div class="client-info"><div class="client-avatar">MC</div><div><h4>Mani Core Team</h4><p style="font-size:14px;">Lead Developer</p></div></div></div>
+                </div>
+            </section>
+
+            <!-- Team Section -->
+            <section id="team" class="section-padding reveal-up">
+                <div class="center-title"><span class="tagline">Leadership</span><h2>Meet the MANI Minds</h2></div>
+                <div class="grid-4">
+                    <div class="iphone-glass card team-card">
+                        <div class="team-photo-box">
+                            <img src="images/team1.jpg" alt="Mani Singh" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="team-hud-ring" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"><div class="t-outer"></div><div class="t-inner"></div><div class="tech-core"></div></div>
+                        </div>
+                        <h4>Mani Singh</h4><p>Founder & Architect</p>
+                    </div>
+                    <div class="iphone-glass card team-card">
+                        <div class="team-photo-box">
+                            <img src="images/team2.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="team-hud-ring" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"><div class="t-outer"></div><div class="t-inner"></div><div class="tech-core"></div></div>
+                        </div>
+                        <h4>Team Expert</h4><p>Integration Specialist</p>
+                    </div>
+                    <div class="iphone-glass card team-card">
+                        <div class="team-photo-box">
+                            <img src="images/team3.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="team-hud-ring" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"><div class="t-outer"></div><div class="t-inner"></div><div class="tech-core"></div></div>
+                        </div>
+                        <h4>Team Expert</h4><p>AI Engineer</p>
+                    </div>
+                    <div class="iphone-glass card team-card">
+                        <div class="team-photo-box">
+                            <img src="images/team4.jpg" alt="Team Expert" class="team-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="team-hud-ring" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"><div class="t-outer"></div><div class="t-inner"></div><div class="tech-core"></div></div>
+                        </div>
+                        <h4>Team Expert</h4><p>UI/UX Designer</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FAQ Accordion -->
+            <section class="section-padding reveal-up">
+                <div class="center-title"><span class="tagline">Questions</span><h2>Common Questions</h2></div>
+                <div class="faq-wrapper">
+                    <div class="iphone-glass faq-item"><div class="faq-header">What industries do you work with? <span class="faq-icon">+</span></div><div class="faq-body">We work primarily with B2B tech, Real Estate, E-commerce, and agencies looking to scale operations using AI.</div></div>
+                    <div class="iphone-glass faq-item"><div class="faq-header">How long does implementation take? <span class="faq-icon">+</span></div><div class="faq-body">Standard automation pipelines take 1-2 weeks, while complex custom AI systems take 3-4 weeks.</div></div>
+                    <div class="iphone-glass faq-item"><div class="faq-header">Do we need technical knowledge? <span class="faq-icon">+</span></div><div class="faq-body">Not at all. We build user-friendly interfaces and provide full training for your team to manage the systems easily.</div></div>
+                    <div class="iphone-glass faq-item"><div class="faq-header">Is AI automation secure? <span class="faq-icon">+</span></div><div class="faq-body">Yes. We use end-to-end encryption and custom API architecture to ensure your business data never leaks to third parties.</div></div>
+                </div>
+            </section>
+
+            <!-- Contact Section -->
+            <section id="contact" class="section-padding reveal-up">
+                <div class="iphone-glass contact-section">
+                    <h2>Your Competitors Are Automating.<br>Are You?</h2>
+                    <p style="color: var(--text-dim);">Stop wasting time on manual processes. Fill out the form below to book a free demo call with the MANI team.</p>
+                    <form id="leadContactForm" class="contact-form">
+                        <input type="text" id="leadName" class="input-glass" placeholder="Your full name" required>
+                        <input type="email" id="leadEmail" class="input-glass" placeholder="Business email address" required>
+                        <input type="text" id="leadCompany" class="input-glass" placeholder="Company name" required>
+                        <button type="submit" class="btn-white" style="width: 100%; padding: 20px;">Send Your Request</button>
+                    </form>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="iphone-glass footer reveal-up" style="max-width: 1200px; margin: 0 auto 40px;">
+            <div class="footer-top">
+                <a href="#" class="logo">Powerd By Mani Ai</a>
+                <div class="social-row"><span>LinkedIn</span> <span>Twitter / X</span> <span>Instagram</span></div>
             </div>
-            <div class="spec-card">
-                <h3>TECH STACK</h3>
-                <p>Node.js, HTML5, CSS3, JavaScript, Three.js</p>
+            <div class="footer-bottom">
+                <p>© 2026 Developed by Money bagga Haroli, District Una, Himachal Pradesh Pincode 177220</p>
+                <div class="footer-links"><span>Privacy Policy</span> <span>Terms of Service</span></div>
             </div>
-        </div>
-    </main>
+        </footer>
+    </div>
 
-    <!-- Footer / Contact Floating Bar -->
-    <footer class="footer-bar">
-        <div class="contact-pill">
-            <span>DIRECT LINE:</span>
-            <a href="tel:+918219693695" class="phone-glow">+91 8219693695</a>
+    <!-- Secret Login Modal -->
+    <div id="secretLoginModal" class="login-overlay">
+        <div class="iphone-glass login-box">
+            <span class="close-login" id="closeLoginModal">&times;</span>
+            <h3>Admin Access</h3>
+            <form id="adminLoginForm" autocomplete="off" onsubmit="return false;">
+                <input type="text" id="loginUser" class="input-glass" placeholder="Username" autocomplete="off">
+                <input type="password" id="loginPass" class="input-glass" placeholder="Password" autocomplete="new-password">
+                <button id="loginSubmitBtn" type="button" class="btn-white" style="margin-top: 10px; width: 100%;">Login</button>
+            </form>
         </div>
-    </footer>
+    </div>
 
-    <!-- CDN Libraries: Three.js, OrbitControls, GSAP -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="main.js"></script>
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="admin-dashboard">
+        <div class="iphone-glass admin-header">
+            <h2 class="admin-title">Admin Dashboard <span>Secured Portal</span></h2>
+            <button id="logoutBtn" class="btn-glass" style="border-color: rgba(255,100,100,0.4); color: #ff6b6b;">Logout Exit</button>
+        </div>
+        <div class="admin-container">
+            <div style="margin-bottom: 30px;"><h3 style="font-size: 24px; color: #fff;">Lead Messages Inbox</h3><p style="color: var(--text-dim); font-size: 14px;">Recent form submissions from your website.</p></div>
+            <div id="adminMessagesGrid" class="messages-grid"></div>
+        </div>
+    </div>
+
+    <!-- External JS Connected -->
+    <script src="script.js" defer></script>
 </body>
 </html>
