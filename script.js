@@ -3,7 +3,7 @@ function closeMobileNav() {
 }
 
 // =====================================================
-// SECURE .env CONFIGURATION LOADER (NO HARDCODED SECRETS IN JS)
+// DIRECT .env LOADER (ZERO HARDCODING - WORKS ON GITHUB PAGES & SERVERS)
 // =====================================================
 const ENV_CONFIG = {
     API_KEY: "",
@@ -14,18 +14,19 @@ const ENV_CONFIG = {
     ADMIN_PASS: ""
 };
 
-async function loadEnvConfig() {
-    const pathsToTry = ['.env', './.env'];
-    for (const path of pathsToTry) {
-        try {
-            const res = await fetch(`${path}?t=${Date.now()}`, { cache: 'no-store' });
-            if (!res.ok) continue;
-            const text = (await res.text()).replace(/^\uFEFF/, '').trim();
-            if (!text) continue;
+function parseEnvContent(rawText) {
+    if (!rawText) return false;
+    let text = rawText.replace(/^\uFEFF/, '').trim();
+    if (!text || text.startsWith('<!DOCTYPE') || text.startsWith('<html')) return false;
 
-            // अगर बैकएंड या फाइल से JSON फॉर्मेट आता है तो उसे भी सपोर्ट करेगा
-            if (text.startsWith('{')) {
-                const json = JSON.parse(text);
+    // अगर GitHub API या बैकएंड से JSON आता है
+    if (text.startsWith('{')) {
+        try {
+            const json = JSON.parse(text);
+            // GitHub Contents API Base64 .env डिकोडर
+            if (json.content && json.encoding === 'base64') {
+                text = atob(json.content.replace(/\s/g, ''));
+            } else {
                 Object.keys(json).forEach(k => {
                     if (json[k] !== undefined && json[k] !== null) {
                         ENV_CONFIG[k.trim()] = String(json[k]).trim();
@@ -33,20 +34,71 @@ async function loadEnvConfig() {
                 });
                 if (ENV_CONFIG.API_KEY) return true;
             }
+        } catch (e) {}
+    }
 
-            // .env फाइल (KEY=VALUE) को रीड और कनेक्ट करना
-            text.split(/\r?\n/).forEach(line => {
-                const trimmed = line.trim();
-                if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return;
-                const idx = trimmed.indexOf('=');
-                const key = trimmed.slice(0, idx).trim();
-                const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
-                if (key) ENV_CONFIG[key] = val;
-            });
+    // सीधा .env (KEY=VALUE) पार्सर
+    text.split(/\r?\n/).forEach(line => {
+        let trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) return;
+        if (trimmed.startsWith('export ')) trimmed = trimmed.slice(7).trim();
+        if (!trimmed.includes('=')) return;
+        const idx = trimmed.indexOf('=');
+        const key = trimmed.slice(0, idx).trim();
+        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+        if (key && val) ENV_CONFIG[key] = val;
+    });
 
-            if (ENV_CONFIG.API_KEY) return true;
+    return Boolean(ENV_CONFIG.API_KEY && ENV_CONFIG.API_ENDPOINT);
+}
+
+function getEnvCandidateUrls() {
+    const urls = [
+        '.env',
+        './.env',
+        `./.env?v=${Date.now()}`,
+        'env',
+        '.env.txt'
+    ];
+
+    // अगर वेबसाइट GitHub Pages (*.github.io) पर है तो सीधे रिपॉजिटरी की .env से कनेक्ट करें
+    const host = window.location.hostname;
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+
+    if (host.endsWith('.github.io')) {
+        const owner = host.replace('.github.io', '');
+        const repo = (pathParts.length > 0 && !pathParts[0].includes('.')) ? pathParts[0] : `${owner}.github.io`;
+        const subDirs = pathParts.slice(1).filter(p => !p.includes('.')).join('/');
+        const relEnv = subDirs ? `${subDirs}/.env` : '.env';
+
+        urls.push(
+            `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${relEnv}`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/main/${relEnv}`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/master/${relEnv}`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/gh-pages/${relEnv}`,
+            `https://api.github.com/repos/${owner}/${repo}/contents/${relEnv}`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/.env`,
+            `https://api.github.com/repos/${owner}/${repo}/contents/.env`
+        );
+    }
+
+    return urls;
+}
+
+async function loadEnvConfig() {
+    if (ENV_CONFIG.API_KEY && ENV_CONFIG.API_ENDPOINT) return true;
+
+    const candidateUrls = getEnvCandidateUrls();
+    for (const url of candidateUrls) {
+        try {
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) continue;
+            const text = await res.text();
+            if (parseEnvContent(text)) {
+                return true;
+            }
         } catch (e) {
-            // अगली लोकेशन ट्राई करें
+            // अगला पाथ चेक करें
         }
     }
     return false;
@@ -616,7 +668,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             : (ENV_CONFIG.AI_MODEL || "").trim();
 
         if (!apiKey || !endpoint) {
-            throw new Error(".env फाइल लोड नहीं हो पाई या उसमें API_KEY मौजूद नहीं है।");
+            throw new Error(".env फाइल आपके रिपॉजिटरी में नहीं मिली। कृपया सुनिश्चित करें कि .env फाइल GitHub रिपॉजिटरी में अपलोड है।");
         }
 
         let messages = [];
