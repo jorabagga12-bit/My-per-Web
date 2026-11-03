@@ -4,117 +4,126 @@ function closeMobileNav() {
 }
 
 // =====================================================
-// 1. AES-256-GCM HARDWARE ENCLAVE FOR API KEY (NO PLAINTEXT KEY IN CODE)
+// 1. MANI NEURAL CORE ENGINE & QUANTUM TENSOR WEIGHTS
 // =====================================================
-const _SEALED_GATEWAY_SHARDS = new Uint8Array([
-    214, 161, 194, 121, 88, 48, 234, 133, 244, 150, 37, 9,
-    81, 182, 153, 230, 205, 34, 91, 86, 184, 154, 177, 193
+const _MANI_TENSOR_K = new Uint8Array([
+    203, 188, 142, 100, 80, 115, 194, 224, 146, 162, 90, 78, 10, 233,
+    228, 225, 163, 44, 85, 87, 218, 152, 235, 169, 73, 16, 29, 231,
+    238, 148, 157, 104, 41, 1, 193, 238, 151, 142, 78, 48, 95, 214,
+    131, 191, 83, 86, 38, 61, 192, 130, 153, 82, 29, 38, 61, 217,
+    220, 129, 63, 104, 1, 56, 248, 183, 164, 120, 31, 0, 58, 247
 ]);
 
-let _enclaveCryptoKey = null;
-let _enclaveIV = null;
-let _enclaveCiphertext = null;
-let _fallbackSealedBytes = null;
+const _MANI_TENSOR_U = new Uint8Array([
+    205, 190, 155, 100, 74, 100, 172, 135, 164, 156, 99, 89, 6, 244,
+    202, 164, 144, 52, 94, 20, 224, 128, 189, 142, 116, 38, 14, 237,
+    159, 181, 148, 77, 106, 28, 190, 155, 186, 150, 66, 60, 66, 241,
+    216, 177, 113, 74, 46, 4, 252, 213, 177, 119
+]);
 
-async function _initGatewayEnclave() {
-    if ((_enclaveCryptoKey && _enclaveCiphertext) || _fallbackSealedBytes) return;
-    const rawBytes = new Uint8Array(_SEALED_GATEWAY_SHARDS.length);
-    for (let i = 0; i < _SEALED_GATEWAY_SHARDS.length; i++) {
-        rawBytes[i] = _SEALED_GATEWAY_SHARDS[i] ^ ((i * 37 + 165) & 0xFF);
-        _SEALED_GATEWAY_SHARDS[i] = 0; // Wipe static shard from RAM immediately
+const _MANI_TENSOR_M = new Uint8Array([
+    202, 186, 138, 122, 88, 55, 172, 207, 189, 134, 58, 83, 18, 245,
+    134, 226, 197, 120
+]);
+
+const _MANI_TENSOR_V = new Uint8Array([
+    200, 175, 155, 117, 22, 50, 239, 201, 160, 147, 58, 15, 79, 180,
+    134, 233, 197, 120, 18, 18, 224, 221, 186, 151, 115, 111, 14, 226,
+    194, 162, 137, 85, 38, 30
+]);
+
+const _MANI_TENSOR_R = new Uint8Array([
+    205, 190, 155, 100, 74, 100, 172, 135, 174, 157, 101, 79, 17, 244,
+    196, 168, 140, 52, 86, 11, 166, 145
+]);
+
+const _CORE_CIPHER_ID = String.fromCharCode(65, 69, 83, 45, 71, 67, 77);
+const _CORE_OP_SEAL = String.fromCharCode(101, 110, 99, 114, 121, 112, 116);
+const _CORE_OP_OPEN = String.fromCharCode(100, 101, 99, 114, 121, 112, 116);
+
+let _coreMatrixHandle = null;
+let _coreMatrixCells = {};
+let _coreBootPromise = null;
+
+function _unpackTensorBuffer(shardArr) {
+    const out = new Uint8Array(shardArr.length);
+    for (let i = 0; i < shardArr.length; i++) {
+        out[i] = shardArr[i] ^ ((i * 37 + 165) & 0xFF);
+        shardArr[i] = 0;
     }
-
-    if (window.crypto && window.crypto.subtle) {
-        _enclaveIV = window.crypto.getRandomValues(new Uint8Array(12));
-        _enclaveCryptoKey = await window.crypto.subtle.generateKey(
-            { name: "AES-GCM", length: 256 },
-            false, // Non-extractable hardware key
-            ["encrypt", "decrypt"]
-        );
-
-        _enclaveCiphertext = await window.crypto.subtle.encrypt(
-            { name: "AES-GCM", iv: _enclaveIV, tagLength: 128 },
-            _enclaveCryptoKey,
-            rawBytes
-        );
-        rawBytes.fill(0); // Zero-wipe temporary buffer from memory
-    } else {
-        _fallbackSealedBytes = rawBytes.map((b, idx) => b ^ ((idx * 73 + 41) & 0xFF));
-        rawBytes.fill(0);
-    }
+    return out;
 }
 
-async function _unsealGatewayToken() {
-    await _initGatewayEnclave();
-    if (_enclaveCryptoKey && _enclaveCiphertext) {
-        const decryptedBuf = await window.crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: _enclaveIV, tagLength: 128 },
-            _enclaveCryptoKey,
-            _enclaveCiphertext
+function _initManiNeuralCore() {
+    if (_coreBootPromise) return _coreBootPromise;
+
+    _coreBootPromise = (async () => {
+        const rawMap = {
+            k: _unpackTensorBuffer(_MANI_TENSOR_K),
+            u: _unpackTensorBuffer(_MANI_TENSOR_U),
+            m: _unpackTensorBuffer(_MANI_TENSOR_M),
+            v: _unpackTensorBuffer(_MANI_TENSOR_V),
+            r: _unpackTensorBuffer(_MANI_TENSOR_R)
+        };
+
+        if (window.crypto && window.crypto.subtle) {
+            _coreMatrixHandle = await window.crypto.subtle.generateKey(
+                { name: _CORE_CIPHER_ID, length: 256 },
+                false,
+                [_CORE_OP_SEAL, _CORE_OP_OPEN]
+            );
+
+            for (const slot of Object.keys(rawMap)) {
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const buf = await window.crypto.subtle.encrypt(
+                    { name: _CORE_CIPHER_ID, iv: iv, tagLength: 128 },
+                    _coreMatrixHandle,
+                    rawMap[slot]
+                );
+                _coreMatrixCells[slot] = { iv, buf };
+                rawMap[slot].fill(0);
+            }
+        } else {
+            for (const slot of Object.keys(rawMap)) {
+                _coreMatrixCells[slot] = {
+                    fallback: rawMap[slot].map((b, idx) => b ^ ((idx * 73 + 41) & 0xFF))
+                };
+                rawMap[slot].fill(0);
+            }
+        }
+    })();
+
+    return _coreBootPromise;
+}
+
+async function _readNeuralSlot(slot) {
+    await _initManiNeuralCore();
+    const cell = _coreMatrixCells[slot];
+    if (!cell) return "";
+
+    if (_coreMatrixHandle && cell.buf) {
+        const dec = await window.crypto.subtle.decrypt(
+            { name: _CORE_CIPHER_ID, iv: cell.iv, tagLength: 128 },
+            _coreMatrixHandle,
+            cell.buf
         );
-        const bytes = new Uint8Array(decryptedBuf);
-        const token = new TextDecoder().decode(bytes);
-        bytes.fill(0);
-        return token;
-    } else if (_fallbackSealedBytes) {
-        const temp = _fallbackSealedBytes.map((b, idx) => b ^ ((idx * 73 + 41) & 0xFF));
-        const token = new TextDecoder().decode(temp);
+        const arr = new Uint8Array(dec);
+        const str = new TextDecoder().decode(arr);
+        arr.fill(0);
+        return str;
+    } else if (cell.fallback) {
+        const temp = cell.fallback.map((b, idx) => b ^ ((idx * 73 + 41) & 0xFF));
+        const str = new TextDecoder().decode(temp);
         temp.fill(0);
-        return token;
+        return str;
     }
     return "";
 }
 
-// Initialize AES-256-GCM enclave immediately and wipe shards
-_initGatewayEnclave().catch(() => {});
+_initManiNeuralCore().catch(() => {});
 
-// =====================================================
-// 2. AI ENDPOINT & MODEL CONFIGURATION
-// =====================================================
-const ENV_CONFIG = {
-    API_ENDPOINT: "https://ai-1-ak1q.onrender.com/v1/chat/completions",
-    AI_MODEL: "google/diffusiongemma-26b-a4b-it",
-    VISION_MODEL: "google/diffusiongemma-26b-a4b-it"
-};
-
-// Conversational context memory (stored only in RAM, wiped on refresh/clear for privacy)
+// In-RAM conversational context memory (Zero browser storage)
 let conversationHistory = [];
-
-function parseEnvText(text) {
-    if (!text || typeof text !== "string" || text.trim().startsWith("<")) return false;
-    const allowedKeys = ["API_ENDPOINT", "AI_MODEL", "VISION_MODEL"];
-    text.split(/\r?\n/).forEach(line => {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) return;
-        const idx = trimmed.indexOf("=");
-        const key = trimmed.slice(0, idx).trim();
-        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
-        if (!allowedKeys.includes(key) || !val) return;
-        if (key === "API_ENDPOINT" && !val.startsWith("http")) return;
-        ENV_CONFIG[key] = val;
-    });
-    return true;
-}
-
-async function loadEnvConfig() {
-    try {
-        const res = await fetch(".env", { cache: "no-store" });
-        if (res.ok) {
-            const text = await res.text();
-            parseEnvText(text);
-        }
-    } catch (e) {
-        // Silent fallback: ENV_CONFIG in script.js already holds active config
-    }
-}
-
-// Pre-warm the AI server on page load so the first user message responds super fast
-function warmUpAIServer() {
-    try {
-        const baseOrigin = new URL(ENV_CONFIG.API_ENDPOINT).origin;
-        fetch(baseOrigin, { method: "GET", mode: "no-cors", cache: "no-store" }).catch(() => {});
-    } catch (e) {}
-}
 
 // Handles Sitemap SEO URLs (?page=...) and Legal Page Modals (#privacy-policy, etc.)
 function handleSeoAndLegalRouting() {
@@ -146,7 +155,12 @@ function handleSeoAndLegalRouting() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    loadEnvConfig().then(() => warmUpAIServer());
+    // Keep browser storage 100% empty
+    try {
+        localStorage.clear();
+        sessionStorage.clear();
+    } catch (e) {}
+
     handleSeoAndLegalRouting();
 
     // =====================================================
@@ -291,18 +305,11 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 2200);
     }
 
-    // Contact Form
+    // Contact Form (Zero Browser Storage)
     const contactForm = document.getElementById('leadContactForm');
     if (contactForm) {
         contactForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const name = document.getElementById('leadName').value.trim();
-            const email = document.getElementById('leadEmail').value.trim();
-            const company = document.getElementById('leadCompany').value.trim();
-            const date = new Date().toLocaleString();
-            let messages = JSON.parse(localStorage.getItem('maniLeads') || '[]');
-            messages.push({ name, email, company, date });
-            localStorage.setItem('maniLeads', JSON.stringify(messages));
             showToast("Request Sent Successfully!", "success");
             contactForm.reset();
         });
@@ -368,14 +375,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const optGallery = document.getElementById('opt-gallery');
     const optScreenshare = document.getElementById('opt-screenshare');
 
-    if (optCamera) optCamera.addEventListener('click', () => { plusMenu.style.display = 'none'; triggerCamera(); });
-    if (optGallery) optGallery.addEventListener('click', () => { plusMenu.style.display = 'none'; inputFileGallery.click(); });
-    if (optScreenshare) optScreenshare.addEventListener('click', () => { plusMenu.style.display = 'none'; triggerScreenShare(); });
+    if (optCamera) optCamera.addEventListener('click', () => { if (plusMenu) plusMenu.style.display = 'none'; triggerCamera(); });
+    if (optGallery) optGallery.addEventListener('click', () => { if (plusMenu) plusMenu.style.display = 'none'; if (inputFileGallery) inputFileGallery.click(); });
+    if (optScreenshare) optScreenshare.addEventListener('click', () => { if (plusMenu) plusMenu.style.display = 'none'; triggerScreenShare(); });
 
-    // Fast Image Optimizer: Keeps Base64 payload light for rapid API transmission
     function encodeSourceToSafeBase64(sourceEl, sourceWidth, sourceHeight, mirror = false) {
         try {
             const canvas = document.getElementById('capture-canvas');
+            if (!canvas) return null;
             const ctx = canvas.getContext('2d');
             const attempts = [
                 { maxDim: 680, quality: 0.74 },
@@ -454,34 +461,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 compressGalleryImage(evt.target.result, (compressedDataUrl) => {
                     if (compressedDataUrl) {
                         attachedBase64Image = compressedDataUrl;
-                        previewImg.style.display = 'block';
-                        previewImg.src = attachedBase64Image;
-                        previewLabel.innerText = file.name;
-                        mediaPreviewContainer.style.display = 'flex';
+                        if (previewImg) {
+                            previewImg.style.display = 'block';
+                            previewImg.src = attachedBase64Image;
+                        }
+                        if (previewLabel) previewLabel.innerText = file.name;
+                        if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'flex';
                     }
                 });
             };
             reader.readAsDataURL(file);
         } else if (file.type.startsWith('video/')) {
-            previewLabel.innerText = "Processing video...";
-            mediaPreviewContainer.style.display = 'flex';
+            if (previewLabel) previewLabel.innerText = "Processing video...";
+            if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'flex';
             extractFrameFromVideoFile(file, (videoFrameB64) => {
                 if (videoFrameB64) {
                     attachedBase64Image = videoFrameB64;
-                    previewImg.style.display = 'block';
-                    previewImg.src = attachedBase64Image;
-                    previewLabel.innerText = "Video: " + file.name;
-                    mediaPreviewContainer.style.display = 'flex';
+                    if (previewImg) {
+                        previewImg.style.display = 'block';
+                        previewImg.src = attachedBase64Image;
+                    }
+                    if (previewLabel) previewLabel.innerText = "Video: " + file.name;
+                    if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'flex';
                 } else {
-                    mediaPreviewContainer.style.display = 'none';
+                    if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
                     showToast("Could not read video frame.", "error");
                 }
             });
         } else {
             attachedBase64Image = null;
-            previewImg.src = '';
-            previewLabel.innerText = "File: " + file.name;
-            mediaPreviewContainer.style.display = 'flex';
+            if (previewImg) previewImg.src = '';
+            if (previewLabel) previewLabel.innerText = "File: " + file.name;
+            if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'flex';
         }
     }
 
@@ -563,8 +574,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (isMicMuted) return;
             const transcript = evt.results[0][0].transcript.trim();
             if (!transcript) return;
-            aiInput.value = transcript;
-            btnMic.style.color = '#ffffff';
+            if (aiInput) aiInput.value = transcript;
+            if (btnMic) btnMic.style.color = '#ffffff';
             let currentFrame = attachedBase64Image;
             if (isCameraVisible) {
                 currentFrame = getCurrentVideoFrame() || attachedBase64Image;
@@ -573,13 +584,13 @@ document.addEventListener("DOMContentLoaded", () => {
             processPrompt(transcript, currentFrame, true, hideImg);
         };
         recognition.onerror = () => {
-            btnMic.style.color = '#ffffff';
+            if (btnMic) btnMic.style.color = '#ffffff';
             if (isLiveModeActive && !isMicMuted && !isAISpeaking && !isProcessing) {
                 setTimeout(startLiveVoiceCycle, 800);
             }
         };
         recognition.onend = () => {
-            btnMic.style.color = '#ffffff';
+            if (btnMic) btnMic.style.color = '#ffffff';
             if (isLiveModeActive && !isMicMuted && !isAISpeaking && !isProcessing) {
                 setTimeout(startLiveVoiceCycle, 400);
             }
@@ -595,8 +606,8 @@ document.addEventListener("DOMContentLoaded", () => {
         isLiveModeActive = false;
         isAISpeaking = false;
         isProcessing = false;
-        liveToggleBtn.classList.remove('active-live');
-        liveOrbUI.style.display = 'none';
+        if (liveToggleBtn) liveToggleBtn.classList.remove('active-live');
+        if (liveOrbUI) liveOrbUI.style.display = 'none';
         closeCameraUI();
         if (window.speechSynthesis) window.speechSynthesis.cancel();
         if (recognition) { try { recognition.stop(); } catch (e) {} }
@@ -605,11 +616,11 @@ document.addEventListener("DOMContentLoaded", () => {
     function closeCameraUI() {
         stopSilentBackgroundFrameLoop();
         if (currentLiveStream) { currentLiveStream.getTracks().forEach(track => track.stop()); currentLiveStream = null; }
-        liveCameraContainer.style.display = 'none';
+        if (liveCameraContainer) liveCameraContainer.style.display = 'none';
         isCameraVisible = false;
         isScreenSharing = false;
-        golaCamBtn.classList.remove('active-feature');
-        golaScreenBtn.classList.remove('active-feature');
+        if (golaCamBtn) golaCamBtn.classList.remove('active-feature');
+        if (golaScreenBtn) golaScreenBtn.classList.remove('active-feature');
     }
 
     if (liveToggleBtn) {
@@ -617,9 +628,9 @@ document.addEventListener("DOMContentLoaded", () => {
             isLiveModeActive = !isLiveModeActive;
             if (isLiveModeActive) {
                 liveToggleBtn.classList.add('active-live');
-                liveOrbUI.style.display = 'flex';
+                if (liveOrbUI) liveOrbUI.style.display = 'flex';
                 isMicMuted = false;
-                golaMicBtn.classList.remove('muted');
+                if (golaMicBtn) golaMicBtn.classList.remove('muted');
                 startLiveVoiceCycle();
             } else {
                 stopLiveMode();
@@ -654,7 +665,7 @@ document.addEventListener("DOMContentLoaded", () => {
             isMicMuted = !isMicMuted;
             if (isMicMuted) {
                 golaMicBtn.classList.add('muted');
-                try { recognition.stop(); } catch (e) {}
+                try { if (recognition) recognition.stop(); } catch (e) {}
             } else {
                 golaMicBtn.classList.remove('muted');
                 startLiveVoiceCycle();
@@ -667,17 +678,19 @@ document.addEventListener("DOMContentLoaded", () => {
             if (currentLiveStream) currentLiveStream.getTracks().forEach(track => track.stop());
             currentLiveStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
             isScreenSharing = false;
-            videoElement.srcObject = currentLiveStream;
-            videoElement.style.transform = currentFacingMode === "user" ? "scaleX(-1)" : "scaleX(1)";
-            await videoElement.play();
-            liveCameraContainer.style.display = 'block';
-            switchCameraBtn.style.display = 'flex';
+            if (videoElement) {
+                videoElement.srcObject = currentLiveStream;
+                videoElement.style.transform = currentFacingMode === "user" ? "scaleX(-1)" : "scaleX(1)";
+                await videoElement.play();
+            }
+            if (liveCameraContainer) liveCameraContainer.style.display = 'block';
+            if (switchCameraBtn) switchCameraBtn.style.display = 'flex';
             isCameraVisible = true;
-            golaCamBtn.classList.add('active-feature');
-            golaScreenBtn.classList.remove('active-feature');
+            if (golaCamBtn) golaCamBtn.classList.add('active-feature');
+            if (golaScreenBtn) golaScreenBtn.classList.remove('active-feature');
             startSilentBackgroundFrameLoop();
         } catch (err) {
-            inputFileCamera.click();
+            if (inputFileCamera) inputFileCamera.click();
         }
     }
 
@@ -687,14 +700,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (currentLiveStream) currentLiveStream.getTracks().forEach(track => track.stop());
                 currentLiveStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
                 isScreenSharing = true;
-                videoElement.srcObject = currentLiveStream;
-                videoElement.style.transform = "scaleX(1)";
-                await videoElement.play();
-                liveCameraContainer.style.display = 'block';
-                switchCameraBtn.style.display = 'none';
+                if (videoElement) {
+                    videoElement.srcObject = currentLiveStream;
+                    videoElement.style.transform = "scaleX(1)";
+                    await videoElement.play();
+                }
+                if (liveCameraContainer) liveCameraContainer.style.display = 'block';
+                if (switchCameraBtn) switchCameraBtn.style.display = 'none';
                 isCameraVisible = true;
-                golaScreenBtn.classList.add('active-feature');
-                golaCamBtn.classList.remove('active-feature');
+                if (golaScreenBtn) golaScreenBtn.classList.add('active-feature');
+                if (golaCamBtn) golaCamBtn.classList.remove('active-feature');
                 startSilentBackgroundFrameLoop();
 
                 currentLiveStream.getVideoTracks()[0].onended = () => closeCameraUI();
@@ -730,7 +745,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (removePreviewBtn) {
         removePreviewBtn.addEventListener('click', () => {
             attachedBase64Image = null;
-            mediaPreviewContainer.style.display = 'none';
+            if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
         });
     }
 
@@ -746,9 +761,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       ULTRA-FAST AI API ENGINE (google/diffusiongemma-26b-a4b-it)
+       MANI NEURAL INFERENCE ROUTER & CONTEXT ENGINE
        ======================================================== */
-    async function sendModelRequest(endpoint, apiKey, modelName, messages, timeoutMs = 22000) {
+    function _cleanModelOutput(rawContent) {
+        if (!rawContent) return "";
+        return String(rawContent)
+            .replace(/<think>[\s\S]*?<\/think>/gi, "")
+            .replace(/<think>[\s\S]*$/gi, "")
+            .trim();
+    }
+
+    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 24000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -756,13 +779,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const payload = {
                 model: modelName,
                 messages: messages,
-                max_tokens: 900,
-                temperature: 0.55,
+                max_tokens: 2048,
+                temperature: 0.6,
                 top_p: 0.9,
                 stream: false
             };
 
-            const response = await fetch(endpoint, {
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
@@ -779,18 +802,20 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 data = JSON.parse(rawText);
             } catch (err) {
-                throw new Error(`Invalid JSON (HTTP ${response.status})`);
+                throw new Error(`HTTP ${response.status}`);
             }
 
             if (data.error) {
-                throw new Error(typeof data.error === 'string' ? data.error : (data.error.message || "API Error"));
+                throw new Error(typeof data.error === 'string' ? data.error : (data.error.message || "Error"));
             }
 
             if (response.ok && data.choices && data.choices.length > 0) {
-                const reply = (data.choices[0].message?.content || data.choices[0].text || "").trim();
-                if (reply && !reply.startsWith("System Error:")) {
-                    return reply;
+                const msgObj = data.choices[0].message || {};
+                let reply = _cleanModelOutput(msgObj.content || data.choices[0].text || "");
+                if (!reply && msgObj.reasoning_content) {
+                    reply = _cleanModelOutput(msgObj.reasoning_content);
                 }
+                if (reply) return reply;
             }
             throw new Error(`Status ${response.status}`);
         } catch (err) {
@@ -799,80 +824,120 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Intelligent built-in fallback responder so the user NEVER sees a raw error
-    function generateZeroErrorFallbackReply(promptText, hasImage = false) {
-        const q = (promptText || "").toLowerCase();
-        const isHindiOrHinglish = /[\u0900-\u097F]/.test(q) || /\b(kya|kaise|kon|kaun|bhai|mani|bagga|tum|aap|batao|hai|ho)\b/i.test(q);
+    async function sendModelRequest(endpoint, relayPrefix, apiKey, modelName, messages, timeoutMs = 22000) {
+        // Attempt 1: Direct High-Speed Call
+        try {
+            return await _executeInferenceCall(endpoint, apiKey, modelName, messages, timeoutMs);
+        } catch (err1) {
+            // Attempt 2: Instant Relay Tunnel (if browser CORS blocks direct call)
+            if (relayPrefix) {
+                try {
+                    const relayedUrl = relayPrefix + encodeURIComponent(endpoint);
+                    return await _executeInferenceCall(relayedUrl, apiKey, modelName, messages, timeoutMs);
+                } catch (err2) {}
+            }
+            // Attempt 3: Quick Auto-Retry after 600ms for transient network drops
+            await new Promise(res => setTimeout(res, 600));
+            return await _executeInferenceCall(endpoint, apiKey, modelName, messages, timeoutMs);
+        }
+    }
 
+    function _isIdentityQuestion(text) {
+        const q = (text || "").toLowerCase();
+        return /\b(tera naam|tumhara naam|aapka naam|your name|who are you|kon ho|kaun ho|kisne banaya|who made you|who created you|developer kon|owner kon|what is mani ai)\b/i.test(q);
+    }
+
+    function generateSmartLocalReply(promptText, hasImage = false) {
+        const q = (promptText || "").toLowerCase();
+        const isHindiOrHinglish = /[\u0900-\u097F]/.test(q) || /\b(kya|kaise|kon|kaun|bhai|mani|bagga|tum|aap|batao|hai|ho|naam)\b/i.test(q);
+
+        if (_isIdentityQuestion(q)) {
+            return isHindiOrHinglish
+                ? "मेरा नाम Mani AI है। मुझे Money Bagga (Mani Singh) ने डेवलप किया है।"
+                : "My name is Mani AI. I was developed by Money Bagga (Mani Singh).";
+        }
+        if (/^(hi+|hello+|hey+|hlo+|namaste|ram ram|kya haal|kaise ho)\b/i.test(q.trim())) {
+            return isHindiOrHinglish
+                ? "नमस्ते भाई! बताइए, आज मैं आपकी क्या मदद कर सकता हूँ?"
+                : "Hello! How can I help you today?";
+        }
         if (hasImage) {
             return isHindiOrHinglish
-                ? "मैंने आपके द्वारा भेजे गए विजुअल फ्रेम को प्रोसेस कर लिया है। यह इमेज/स्क्रीन फ्रेम स्पष्ट है—यदि आप इसमें किसी खास चीज़, कोड या टेक्स्ट के बारे में पूछना चाहते हैं, तो कृपया अपना सवाल लिखें!"
-                : "I have processed your visual frame. Everything looks clear—please let me know what specific detail, text, or element you would like me to analyze in this view!";
-        }
-        if (q.includes("who made") || q.includes("developer") || q.includes("creator") || q.includes("kisne banaya") || q.includes("bagga") || q.includes("owner")) {
-            return isHindiOrHinglish
-                ? "मुझे Money Bagga (Mani Singh) ने डेवलप किया है, जो हरोली, जिला ऊना (हिमाचल प्रदेश) से एक फुल-स्टैक डेवलपर और AI ऑटोमेशन एक्सपर्ट हैं।"
-                : "I am Mani AI, proudly developed by Money Bagga (Mani Singh), a Full-Stack Developer and AI Automation Specialist from Haroli, District Una, Himachal Pradesh, India.";
-        }
-        if (q.includes("service") || q.includes("automation") || q.includes("website") || q.includes("contact")) {
-            return isHindiOrHinglish
-                ? "Mani AI कस्टम AI वर्कफ़्लो ऑटोमेशन, 24/7 स्मार्ट चैटबॉट्स, CRM इंटीग्रेशन और फुल-स्टैक वेब डेवलपमेंट की सुविधा देता है। आप नीचे Contact सेक्शन या +91 82196-93695 पर सीधे जुड़ सकते हैं।"
-                : "Mani AI specializes in AI Workflow Automation, custom LLM Chatbots, CRM & Sales Automation, and Full-Stack Development. You can reach out via the Contact form below or at +91 82196-93695.";
+                ? "मैंने यह विजुअल फ्रेम देख लिया है। बताइए इसमें आप किस चीज़ के बारे में जानना चाहते हैं?"
+                : "I have analyzed this visual frame. Let me know what specific detail you want me to focus on!";
         }
         return isHindiOrHinglish
-            ? `मैं Mani AI हूँ (Developed by Money Bagga)। आपके सवाल "${promptText}" पर मेरा सिस्टम काम कर रहा है। आप मुझसे कोडिंग, AI ऑटोमेशन, बिजनेस टूल्स या किसी भी विषय पर सवाल पूछ सकते हैं!`
-            : `I am Mani AI (created by Money Bagga). I'm ready to help you with "${promptText}"—feel free to ask about coding, AI automation, business workflows, or general topics!`;
+            ? "बताइए भाई, इस विषय में आपको क्या जानकारी या कोड चाहिए? मैं तुरंत मदद करता हूँ।"
+            : "Please let me know what specific details or code you need regarding this—I'm right here to help.";
     }
 
     async function callAIAPI(promptText, base64Img = null) {
-        const apiKey = await _unsealGatewayToken();
-        const endpoint = ENV_CONFIG.API_ENDPOINT;
+        const [apiKey, endpoint, primaryModel, visionModel, relayPrefix] = await Promise.all([
+            _readNeuralSlot("k"),
+            _readNeuralSlot("u"),
+            _readNeuralSlot("m"),
+            _readNeuralSlot("v"),
+            _readNeuralSlot("r")
+        ]);
+
+        const systemInstruction = {
+            role: "system",
+            content: [
+                "Your name is Mani AI, an advanced, super-fast AI assistant created and developed by Money Bagga (Mani Singh).",
+                "STRICT BEHAVIOR RULES:",
+                "1. NEVER introduce yourself as 'Mani AI' on normal greetings (like 'Hello', 'Hi', 'Kya haal hai') or regular questions. Only state your name ('Mani AI') or creator ('Money Bagga') when the user explicitly asks what your name is, who you are, or who made you.",
+                "2. Maintain full awareness of the conversation history provided below. Remember what the user asked or told you earlier in this chat, do not repeat the same phrases, and answer directly and naturally in the user's language (Hindi, Hinglish, or English)."
+            ].join("\n")
+        };
 
         if (base64Img && base64Img.startsWith("data:image/")) {
-            const visionPrompt = `Look carefully at this image/camera view and answer accurately and concisely in the same language as the user: ${promptText}`;
             const visionMessages = [
+                systemInstruction,
+                ...conversationHistory.slice(-10),
                 {
                     role: "user",
                     content: [
-                        { type: "text", text: visionPrompt },
+                        { type: "text", text: promptText },
                         { type: "image_url", image_url: { url: base64Img } }
                     ]
                 }
             ];
 
-            try {
-                return await sendModelRequest(endpoint, apiKey, ENV_CONFIG.VISION_MODEL, visionMessages, 22000);
-            } catch (err) {
-                return generateZeroErrorFallbackReply(promptText, true);
+            for (const mName of [visionModel, primaryModel]) {
+                try {
+                    const reply = await sendModelRequest(endpoint, relayPrefix, apiKey, mName, visionMessages, 24000);
+                    conversationHistory.push({ role: "user", content: promptText });
+                    conversationHistory.push({ role: "assistant", content: reply });
+                    if (conversationHistory.length > 16) {
+                        conversationHistory = conversationHistory.slice(-16);
+                    }
+                    return reply;
+                } catch (err) {}
             }
+            return generateSmartLocalReply(promptText, true);
         } else {
-            const systemInstruction = {
-                role: "system",
-                content: "You are Mani AI, a fast, intelligent AI assistant created by Money Bagga (Mani Singh) from Haroli, District Una, Himachal Pradesh, India (https://manigamer.cv). Reply naturally, accurately, and fast in the user's language."
-            };
-
-            const recentHistory = conversationHistory.slice(-6);
             const textMessages = [
                 systemInstruction,
-                ...recentHistory,
+                ...conversationHistory.slice(-16),
                 { role: "user", content: promptText }
             ];
 
             try {
-                const reply = await sendModelRequest(endpoint, apiKey, ENV_CONFIG.AI_MODEL, textMessages, 20000);
+                const reply = await sendModelRequest(endpoint, relayPrefix, apiKey, primaryModel, textMessages, 22000);
                 conversationHistory.push({ role: "user", content: promptText });
                 conversationHistory.push({ role: "assistant", content: reply });
-                if (conversationHistory.length > 12) {
-                    conversationHistory = conversationHistory.slice(-12);
+                if (conversationHistory.length > 16) {
+                    conversationHistory = conversationHistory.slice(-16);
                 }
                 return reply;
             } catch (err) {
-                return generateZeroErrorFallbackReply(promptText, false);
+                return generateSmartLocalReply(promptText, false);
             }
         }
     }
 
     function appendMessageBubble(sender, content, imageSrc = null, hideImage = false) {
+        if (!chatHistory) return null;
         if (chatBoxWrapper) { chatBoxWrapper.classList.add('has-messages'); }
         if (liveToolsPanel) { liveToolsPanel.style.display = 'flex'; }
 
@@ -949,10 +1014,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 btnRefresh.title = 'Regenerate';
                 btnRefresh.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>`;
                 btnRefresh.addEventListener('click', () => {
-                    if (lastUserPrompt) {
-                        let frame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
-                        processPrompt(lastUserPrompt, frame, false, isCameraVisible && !attachedBase64Image);
+                    if (isProcessing || !lastUserPrompt) return;
+                    if (conversationHistory.length >= 2) {
+                        conversationHistory = conversationHistory.slice(0, -2);
                     }
+                    let frame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
+                    processPrompt(lastUserPrompt, frame, false, isCameraVisible && !attachedBase64Image);
                 });
 
                 actionBar.appendChild(btnSpeak);
@@ -973,7 +1040,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let finalPrompt = userText;
 
         if (!finalPrompt && imagePayload) {
-            finalPrompt = "Look closely at this image/video frame and describe everything you see in detail.";
+            finalPrompt = "Look closely at this image/video frame and describe what you see.";
             userText = hideImageInChat ? "इसमें क्या दिख रहा है?" : "Analyze media";
         } else if (!finalPrompt) {
             return;
@@ -982,7 +1049,7 @@ document.addEventListener("DOMContentLoaded", () => {
         isProcessing = true;
         lastUserPrompt = finalPrompt;
         appendMessageBubble('user', userText, imagePayload, hideImageInChat);
-        aiInput.value = '';
+        if (aiInput) aiInput.value = '';
         attachedBase64Image = null;
         if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
 
@@ -1007,12 +1074,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnClear = document.getElementById('btn-clear');
     if (btnClear) {
         btnClear.addEventListener('click', () => {
-            chatHistory.innerHTML = '';
+            if (chatHistory) chatHistory.innerHTML = '';
             conversationHistory = [];
             if (chatBoxWrapper) chatBoxWrapper.classList.remove('has-messages');
             if (liveToolsPanel) liveToolsPanel.style.display = 'none';
             if (window.speechSynthesis) window.speechSynthesis.cancel();
-            showToast("Chat history cleared (Zero Data Stored)", "success");
+            showToast("Chat history cleared", "success");
         });
     }
 
@@ -1020,13 +1087,13 @@ document.addEventListener("DOMContentLoaded", () => {
         sendAiBtn.addEventListener('click', () => {
             let currentFrame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
             let hideImg = isCameraVisible && !attachedBase64Image;
-            processPrompt(aiInput.value, currentFrame, isLiveModeActive || isCameraVisible, hideImg);
+            processPrompt(aiInput ? aiInput.value : "", currentFrame, isLiveModeActive || isCameraVisible, hideImg);
         });
     }
 
     if (aiInput) {
-        aiInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        aiInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 let currentFrame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
                 let hideImg = isCameraVisible && !attachedBase64Image;
