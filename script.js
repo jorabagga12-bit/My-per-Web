@@ -806,7 +806,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return /\b(tera naam|tumhara naam|aapka naam|your name|who are you|kon ho|kaun ho|kisne banaya|who made you|who created you|developer kon|owner kon|what is mani ai)\b/i.test(q);
     }
 
-    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 14000, omitAuth = false) {
+    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 12000, omitAuth = false, useSimpleCors = false) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -826,11 +826,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     stream: false
                 };
 
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            };
-            if (!omitAuth && apiKey) {
+            const headers = useSimpleCors
+                ? { 'Content-Type': 'text/plain;charset=UTF-8' }
+                : { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+
+            if (!omitAuth && apiKey && !useSimpleCors) {
                 headers['Authorization'] = `Bearer ${apiKey}`;
             }
 
@@ -870,38 +870,72 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    async function _executeDirectGetBridge(bridgeBaseUrl, messages, timeoutMs = 12000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const sysMsg = messages.find(m => m.role === "system");
+            const lastMsg = messages[messages.length - 1];
+            let promptStr = "";
+            if (typeof lastMsg.content === "string") {
+                promptStr = lastMsg.content;
+            } else if (Array.isArray(lastMsg.content)) {
+                const txtPart = lastMsg.content.find(p => p.type === "text");
+                promptStr = txtPart ? txtPart.text : "Hello";
+            }
+
+            const rootUrl = bridgeBaseUrl.replace(/\/openai\/?$/, "");
+            const sysParam = sysMsg ? `&system=${encodeURIComponent(sysMsg.content)}` : "";
+            const target = `${rootUrl}/${encodeURIComponent(promptStr)}?model=openai${sysParam}&seed=${Math.floor(Math.random() * 99999)}`;
+
+            const res = await fetch(target, { method: "GET", signal: controller.signal });
+            clearTimeout(timer);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const text = _cleanModelOutput(await res.text());
+            if (text && !text.startsWith("<") && !_isErrorPayloadText(text)) {
+                return text;
+            }
+            throw new Error("Empty response");
+        } catch (err) {
+            clearTimeout(timer);
+            throw err;
+        }
+    }
+
     async function sendMultiNodeRequest(nodes, messages) {
         const { nvidiaUrl, nvidiaKey, nvidiaModel, relayPrefix, bridgeUrl, renderUrl, renderKey } = nodes;
 
-        // Node 1: Direct NVIDIA NIM Call
+        // Node 1: Direct NVIDIA NIM Call (Uses your exact GPT / Vision model from Tensor)
         try {
-            return await _executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 6000, false);
+            return await _executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 4500, false, false);
         } catch (e1) {}
 
-        // Node 2: NVIDIA NIM via Encrypted Relay Tunnel
-        if (relayPrefix) {
+        // Node 2: Secondary Render Gateway Node with your exact Tensor GPT model
+        if (renderUrl && renderKey) {
             try {
-                const relayedUrl = relayPrefix + encodeURIComponent(nvidiaUrl);
-                return await _executeInferenceCall(relayedUrl, nvidiaKey, nvidiaModel, messages, 7500, false);
+                return await _executeInferenceCall(renderUrl, renderKey, nvidiaModel, messages, 7000, false, false);
             } catch (e2) {}
         }
 
-        // Node 3: Secondary Render Gateway Node (Using your active NVIDIA model instead of invalid model ID)
-        if (renderUrl && renderKey) {
+        // Node 3: NVIDIA NIM via Encrypted Relay Tunnel
+        if (relayPrefix) {
             try {
-                return await _executeInferenceCall(renderUrl, renderKey, nvidiaModel, messages, 11000, false);
+                const relayedUrl = relayPrefix + encodeURIComponent(nvidiaUrl);
+                return await _executeInferenceCall(relayedUrl, nvidiaKey, nvidiaModel, messages, 6000, false, false);
             } catch (e3) {}
         }
 
-        // Node 4: Direct Browser-CORS Neural Bridge (Works 100% in all browsers without CORS block or 403)
+        // Node 4: Browser-Direct CORS-Free Neural Bridge (JSON + Simple CORS POST + GET Fallback)
         if (bridgeUrl) {
             try {
-                return await _executeInferenceCall(bridgeUrl, "", "openai", messages, 14000, true);
+                return await _executeInferenceCall(bridgeUrl, "", "openai", messages, 10000, true, false);
             } catch (e4) {
                 try {
                     const rootBridge = bridgeUrl.replace(/\/openai\/?$/, "/");
-                    return await _executeInferenceCall(rootBridge, "", "openai", messages, 14000, true);
-                } catch (e5) {}
+                    return await _executeInferenceCall(rootBridge, "", "openai", messages, 10000, true, true);
+                } catch (e5) {
+                    return await _executeDirectGetBridge(bridgeUrl, messages, 11000);
+                }
             }
         }
 
