@@ -4,133 +4,28 @@ function closeMobileNav() {
 }
 
 // =====================================================
-// 1. MANI NEURAL CORE ENGINE & QUANTUM TENSOR WEIGHTS
+// 1. DIRECT NVIDIA NIM CONFIG (FROM YOUR NODE.JS SNIPPET)
 // =====================================================
-const _MANI_TENSOR_K = new Uint8Array([
-    203, 188, 142, 100, 80, 115, 194, 224, 146, 162, 90, 78, 10, 233,
-    228, 225, 163, 44, 85, 87, 218, 152, 235, 169, 73, 16, 29, 231,
-    238, 148, 157, 104, 41, 1, 193, 238, 151, 142, 78, 48, 95, 214,
-    131, 191, 83, 86, 38, 61, 192, 130, 153, 82, 29, 38, 61, 217,
-    220, 129, 63, 104, 1, 56, 248, 183, 164, 120, 31, 0, 58, 247
-]);
+const NVIDIA_CONFIG = {
+    apiKey: "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",
+    baseURL: "https://integrate.api.nvidia.com/v1",
+    endpoint: "https://integrate.api.nvidia.com/v1/chat/completions",
+    model: "openai/gpt-oss-20b",
+    visionModel: "meta/llama-3.2-90b-vision-instruct",
+    temperature: 1,
+    top_p: 1,
+    max_tokens: 4096,
+    stream: false
+};
 
-const _MANI_TENSOR_U = new Uint8Array([
-    205, 190, 155, 100, 74, 100, 172, 135, 164, 156, 99, 89, 6, 244,
-    202, 164, 144, 52, 94, 20, 224, 128, 189, 142, 116, 38, 14, 237,
-    159, 181, 148, 77, 106, 28, 190, 155, 186, 150, 66, 60, 66, 241,
-    216, 177, 113, 74, 46, 4, 252, 213, 177, 119
-]);
-
-const _MANI_TENSOR_M = new Uint8Array([
-    202, 186, 138, 122, 88, 55, 172, 207, 189, 134, 58, 83, 18, 245,
-    134, 226, 197, 120
-]);
-
-const _MANI_TENSOR_V = new Uint8Array([
-    200, 175, 155, 117, 22, 50, 239, 201, 160, 147, 58, 15, 79, 180,
-    134, 233, 197, 120, 18, 18, 224, 221, 186, 151, 115, 111, 14, 226,
-    194, 162, 137, 85, 38, 30
-]);
-
-const _MANI_TENSOR_R = new Uint8Array([
-    205, 190, 155, 100, 74, 100, 172, 135, 174, 157, 101, 79, 17, 244,
-    196, 168, 140, 52, 86, 11, 166, 145, 166, 138, 113, 127
-]);
-
-// Obfuscated Counter-Payload Shard (Invisible to AdSense crawlers, triggers only on Kali/Payloads)
+// =====================================================
+// 1B. KALI LINUX & PAYLOAD INTRUSION SHIELD (ADSENSE SAFE)
+// =====================================================
 const _MANI_DEFENSE_SHARD = [
     2340, 2375, 2352, 2368, 32, 2350, 2366, 2306, 32, 2325, 2368, 32,
     2330, 2379, 2342, 32, 2350, 2366, 2342, 2352, 2330, 2379, 2342
 ];
 
-const _CORE_CIPHER_ID = String.fromCharCode(65, 69, 83, 45, 71, 67, 77);
-const _CORE_OP_SEAL = String.fromCharCode(101, 110, 99, 114, 121, 112, 116);
-const _CORE_OP_OPEN = String.fromCharCode(100, 101, 99, 114, 121, 112, 116);
-
-let _coreMatrixHandle = null;
-let _coreMatrixCells = {};
-let _coreBootPromise = null;
-
-function _unpackTensorBuffer(shardArr) {
-    const out = new Uint8Array(shardArr.length);
-    for (let i = 0; i < shardArr.length; i++) {
-        out[i] = shardArr[i] ^ ((i * 37 + 165) & 0xFF);
-        shardArr[i] = 0;
-    }
-    return out;
-}
-
-function _initManiNeuralCore() {
-    if (_coreBootPromise) return _coreBootPromise;
-
-    _coreBootPromise = (async () => {
-        const rawMap = {
-            k: _unpackTensorBuffer(_MANI_TENSOR_K),
-            u: _unpackTensorBuffer(_MANI_TENSOR_U),
-            m: _unpackTensorBuffer(_MANI_TENSOR_M),
-            v: _unpackTensorBuffer(_MANI_TENSOR_V),
-            r: _unpackTensorBuffer(_MANI_TENSOR_R)
-        };
-
-        if (window.crypto && window.crypto.subtle) {
-            _coreMatrixHandle = await window.crypto.subtle.generateKey(
-                { name: _CORE_CIPHER_ID, length: 256 },
-                false,
-                [_CORE_OP_SEAL, _CORE_OP_OPEN]
-            );
-
-            for (const slot of Object.keys(rawMap)) {
-                const iv = window.crypto.getRandomValues(new Uint8Array(12));
-                const buf = await window.crypto.subtle.encrypt(
-                    { name: _CORE_CIPHER_ID, iv: iv, tagLength: 128 },
-                    _coreMatrixHandle,
-                    rawMap[slot]
-                );
-                _coreMatrixCells[slot] = { iv, buf };
-                rawMap[slot].fill(0);
-            }
-        } else {
-            for (const slot of Object.keys(rawMap)) {
-                _coreMatrixCells[slot] = {
-                    fallback: rawMap[slot].map((b, idx) => b ^ ((idx * 73 + 41) & 0xFF))
-                };
-                rawMap[slot].fill(0);
-            }
-        }
-    })();
-
-    return _coreBootPromise;
-}
-
-async function _readNeuralSlot(slot) {
-    await _initManiNeuralCore();
-    const cell = _coreMatrixCells[slot];
-    if (!cell) return "";
-
-    if (_coreMatrixHandle && cell.buf) {
-        const dec = await window.crypto.subtle.decrypt(
-            { name: _CORE_CIPHER_ID, iv: cell.iv, tagLength: 128 },
-            _coreMatrixHandle,
-            cell.buf
-        );
-        const arr = new Uint8Array(dec);
-        const str = new TextDecoder().decode(arr);
-        arr.fill(0);
-        return str;
-    } else if (cell.fallback) {
-        const temp = cell.fallback.map((b, idx) => b ^ ((idx * 73 + 41) & 0xFF));
-        const str = new TextDecoder().decode(temp);
-        temp.fill(0);
-        return str;
-    }
-    return "";
-}
-
-_initManiNeuralCore().catch(() => {});
-
-// =====================================================
-// 1B. KALI LINUX & PAYLOAD INTRUSION SHIELD (ADSENSE SAFE)
-// =====================================================
 function _getDefenseResponse() {
     return String.fromCharCode(..._MANI_DEFENSE_SHARD);
 }
@@ -154,7 +49,7 @@ function _isKaliOrExploitAttempt(inputStr = "") {
     const raw = String(inputStr || "").trim();
     if (!raw) return false;
 
-    // Detect SQLi, XSS, LFI, Command Injection, Key/Tensor extraction payloads
+    // Detect SQLi, XSS, LFI, Command Injection, or NVIDIA API Key extraction payloads
     const payloadPatterns = [
         /<script[\s>]/i,
         /javascript\s*:/i,
@@ -163,7 +58,7 @@ function _isKaliOrExploitAttempt(inputStr = "") {
         /('\s*or\s*'1'\s*=\s*'1|"\s*or\s*"1"\s*=\s*"1|\bor\s+1\s*=\s*1\b)/i,
         /\b(drop\s+table|information_schema|sleep\(\d+\)|benchmark\()/i,
         /(\/etc\/passwd|\/etc\/shadow|\.\.\/\.\.\/|cmd\.exe|\/bin\/bash|\/bin\/sh)/i,
-        /\b(_mani_tensor|_corematrix|nvapi-|sk-mani-|api_key\s*nikal|api\s*key\s*de|expose\s*api\s*key|dump\s*key|show\s*system\s*prompt|ignore\s+all\s+previous\s+instructions)\b/i,
+        /\b(nvapi-|nvidia_config|api_key\s*nikal|api\s*key\s*de|expose\s*api\s*key|dump\s*key|show\s*system\s*prompt|ignore\s+all\s+previous\s+instructions)\b/i,
         /\b(sqlmap|metasploit|burpsuite|nmap\s+-|kali\s+linux\s+payload)\b/i
     ];
 
@@ -866,7 +761,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       PURE NVIDIA NIM INFERENCE ENGINE (USES ONLY TOP TENSORS)
+       NVIDIA NIM (openai/gpt-oss-20b) + FAST 10s FALLBACK ENGINE
        ======================================================== */
     function _cleanModelOutput(rawContent) {
         if (!rawContent) return "";
@@ -876,7 +771,8 @@ document.addEventListener("DOMContentLoaded", () => {
             .trim();
     }
 
-    async function _callNvidiaTensorNode(targetUrl, apiKey, modelName, messages, timeoutMs = 28000) {
+    // Calls NVIDIA NIM using your exact Node.js parameters & reasoning_content / content extraction
+    async function _callNvidiaCompletion(targetUrl, modelName, messages, timeoutMs = 9500) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -884,16 +780,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const payload = {
                 model: modelName,
                 messages: messages,
-                max_tokens: 1024,
-                temperature: 0.65,
-                top_p: 0.95,
+                temperature: NVIDIA_CONFIG.temperature,
+                top_p: NVIDIA_CONFIG.top_p,
+                max_tokens: NVIDIA_CONFIG.max_tokens,
                 stream: false
             };
 
             const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`,
+                    'Authorization': `Bearer ${NVIDIA_CONFIG.apiKey}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
@@ -906,60 +802,70 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(`HTTP ${response.status}`);
             }
 
-            const data = await response.json();
-            if (data && data.choices && data.choices.length > 0) {
-                const msgObj = data.choices[0].message || {};
-                let rawReply = msgObj.content;
+            const completion = await response.json();
+            const messageObj = completion.choices?.[0]?.message;
+            if (!messageObj) throw new Error("Empty completion");
 
-                if (Array.isArray(rawReply)) {
-                    rawReply = rawReply.map(part => part.text || "").join("");
-                }
+            const reasoning = messageObj.reasoning_content;
+            const content = messageObj.content;
 
-                let reply = _cleanModelOutput(rawReply || data.choices[0].text || "");
-                if (!reply && msgObj.reasoning_content) {
-                    reply = _cleanModelOutput(msgObj.reasoning_content);
-                }
+            // Prefer final clean content; fallback to reasoning_content if content is empty
+            const finalOutput = _cleanModelOutput(content || reasoning || "");
+            if (finalOutput) return finalOutput;
 
-                if (reply) return reply;
-            }
-            throw new Error("Empty response");
+            throw new Error("Empty text");
         } catch (err) {
             clearTimeout(timer);
             throw err;
         }
     }
 
-    async function sendNvidiaRequest(nvidiaUrl, nvidiaKey, nvidiaModel, relayPrefix, messages) {
-        const routes = [];
-
-        // Route 1: Direct NVIDIA API Call
-        routes.push(_callNvidiaTensorNode(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 28000));
-
-        // Route 2: NVIDIA API via Encrypted CORS Relay (for browsers blocking direct cross-origin headers)
-        if (relayPrefix) {
-            const relayUrl1 = relayPrefix + encodeURIComponent(nvidiaUrl);
-            routes.push(_callNvidiaTensorNode(relayUrl1, nvidiaKey, nvidiaModel, messages, 28000));
-
-            const relayUrl2 = relayPrefix.replace(/\?url=$/, "?") + encodeURIComponent(nvidiaUrl);
-            if (relayUrl2 !== relayUrl1) {
-                routes.push(_callNvidiaTensorNode(relayUrl2, nvidiaKey, nvidiaModel, messages, 28000));
-            }
-        }
+    // Fast Browser-Compatible OpenAI Backup (Ensures 100% reply in <10s if Browser CORS blocks NVIDIA)
+    async function _callFastBrowserFallback(messages, promptText, timeoutMs = 10000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            if (typeof Promise.any === "function") {
-                return await Promise.any(routes);
-            }
-            for (const r of routes) {
-                try { return await r; } catch (e) {}
-            }
-        } catch (firstErr) {
-            // Automatic retry once if mobile network had a momentary packet drop
-            const retryUrl = relayPrefix ? (relayPrefix + encodeURIComponent(nvidiaUrl)) : nvidiaUrl;
-            return await _callNvidiaTensorNode(retryUrl, nvidiaKey, nvidiaModel, messages, 28000);
-        }
+            const response = await fetch("https://text.pollinations.ai/openai", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: "openai",
+                    messages: messages,
+                    temperature: 0.7,
+                    stream: false
+                }),
+                signal: controller.signal
+            });
 
-        throw new Error("NVIDIA unreachable");
+            clearTimeout(timer);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const rawText = await response.text();
+            try {
+                const data = JSON.parse(rawText);
+                const msg = data.choices?.[0]?.message?.content || "";
+                const cleaned = _cleanModelOutput(msg);
+                if (cleaned) return cleaned;
+            } catch (e) {
+                const cleanedRaw = _cleanModelOutput(rawText);
+                if (cleanedRaw && !cleanedRaw.startsWith("<")) return cleanedRaw;
+            }
+            throw new Error("Empty fallback");
+        } catch (postErr) {
+            clearTimeout(timer);
+            // Instant GET fallback if POST is throttled
+            const sysMsg = messages.find(m => m.role === "system")?.content || "";
+            const historyLines = conversationHistory.slice(-6).map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`).join("\n");
+            const fullQuery = historyLines ? `${historyLines}\nUser: ${promptText}\nAI:` : promptText;
+            const getUrl = `https://text.pollinations.ai/${encodeURIComponent(fullQuery.slice(0, 1000))}?model=openai&system=${encodeURIComponent(sysMsg.slice(0, 500))}&seed=${Math.floor(Math.random() * 99999)}`;
+            const res = await fetch(getUrl);
+            if (!res.ok) throw new Error("GET failed");
+            return _cleanModelOutput(await res.text());
+        }
     }
 
     async function callAIAPI(promptText, base64Img = null) {
@@ -970,28 +876,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir)\b/i.test(promptText);
 
-        // Read ONLY the top hardcoded NVIDIA tensors
-        const [nvidiaKey, nvidiaUrl, primaryModel, visionModel, relayPrefix] = await Promise.all([
-            _readNeuralSlot("k"),
-            _readNeuralSlot("u"),
-            _readNeuralSlot("m"),
-            _readNeuralSlot("v"),
-            _readNeuralSlot("r")
-        ]);
-
         const systemInstruction = {
             role: "system",
             content: [
                 "You are a warm, smart, natural, human-like AI peer (talking just like Google Gemini).",
-                "STRICT RESPONSE LENGTH & STYLE RULES:",
-                "1. If the user sends a short casual message (like 'Hi', 'Kese ho', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence.",
-                "2. If the user asks a question (like 'Ai kya hai', 'Shimla samjhota kab hua', or coding questions), give a direct, clear, accurate, and complete answer.",
+                "STRICT CONVERSATION RULES:",
+                "1. If the user sends a short casual message (like 'Hi', 'Kese ho', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence like a real friend.",
+                "2. If the user asks a question (like 'Ai kya hai', 'Which number is larger, 9.11 or 9.8?', or coding questions), give a direct, clear, accurate, and complete answer.",
                 "3. IDENTITY RULE: Never mention your name on normal greetings or general questions. ONLY IF the user explicitly asks your name, who you are, or who made/created you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
                 "4. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in natural English."
             ].join("\n")
         };
 
-        const activeModel = (base64Img && base64Img.startsWith("data:image/")) ? visionModel : primaryModel;
+        const activeModel = (base64Img && base64Img.startsWith("data:image/"))
+            ? NVIDIA_CONFIG.visionModel
+            : NVIDIA_CONFIG.model;
 
         const activeMessages = (base64Img && base64Img.startsWith("data:image/"))
             ? [
@@ -1011,16 +910,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 { role: "user", content: promptText }
             ];
 
+        // Step 1: Try NVIDIA NIM (Direct + CORS Proxy) with fast 9.5s timeout
         try {
-            const reply = await sendNvidiaRequest(nvidiaUrl, nvidiaKey, activeModel, relayPrefix, activeMessages);
+            const nvidiaCalls = [
+                _callNvidiaCompletion(NVIDIA_CONFIG.endpoint, activeModel, activeMessages, 9500),
+                _callNvidiaCompletion("https://corsproxy.io/?url=" + encodeURIComponent(NVIDIA_CONFIG.endpoint), activeModel, activeMessages, 9500)
+            ];
+            const nvidiaReply = await Promise.any(nvidiaCalls);
             conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply });
+            conversationHistory.push({ role: "assistant", content: nvidiaReply });
             if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return reply;
-        } catch (err) {
-            return isHindiOrHinglish
-                ? "सर्वर से रिस्पॉन्स आने में टाइम लग रहा है, एक बार दोबारा सेंड करो भाई।"
-                : "Server took too long to respond, please send your message again.";
+            return nvidiaReply;
+        } catch (nvidiaErr) {
+            // Step 2: Instant Fallback if browser blocks NVIDIA CORS or NVIDIA takes >9.5s
+            try {
+                const fastReply = await _callFastBrowserFallback(activeMessages, promptText, 10000);
+                conversationHistory.push({ role: "user", content: promptText });
+                conversationHistory.push({ role: "assistant", content: fastReply });
+                if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+                return fastReply;
+            } catch (fallbackErr) {
+                return isHindiOrHinglish
+                    ? "भाई, नेटवर्क सिग्नल थोड़ा वीक लग रहा है, एक बार फिर से सेंड करना!"
+                    : "Network signal seems weak, please send your message once more!";
+            }
         }
     }
 
