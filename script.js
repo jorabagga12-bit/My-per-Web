@@ -37,28 +37,10 @@ const _MANI_TENSOR_R = new Uint8Array([
     196, 168, 140, 52, 86, 11, 166, 145, 166, 138, 113, 127
 ]);
 
-const _MANI_TENSOR_R2 = new Uint8Array([
-    205, 190, 155, 100, 74, 100, 172, 135, 185, 154, 126, 82, 6, 246,
-    217, 191, 141, 99, 17, 2, 251, 203, 182, 154, 114, 35, 21, 232,
-    159, 191, 148, 15, 35, 15, 251, 215, 177, 209
-]);
-
 const _MANI_TENSOR_B = new Uint8Array([
     205, 190, 155, 100, 74, 100, 172, 135, 185, 151, 111, 72, 79, 246,
     196, 188, 153, 115, 81, 5, 253, 199, 188, 150, 110, 108, 6, 229,
     158, 185, 139, 69, 43, 11, 230
-]);
-
-const _MANI_TENSOR_G = new Uint8Array([
-    205, 190, 155, 100, 74, 100, 172, 135, 172, 155, 58, 13, 76, 231,
-    192, 225, 132, 52, 80, 10, 251, 203, 189, 156, 120, 48, 73, 239,
-    222, 187, 212, 86, 116, 69, 236, 220, 184, 138, 12, 43, 2, 255,
-    199, 176, 100, 82, 34, 31, 251, 201
-]);
-
-const _MANI_TENSOR_GK = new Uint8Array([
-    214, 161, 194, 121, 88, 48, 234, 133, 244, 150, 37, 9,
-    81, 182, 153, 230, 205, 34, 91, 86, 184, 154, 177, 193
 ]);
 
 // Obfuscated Counter-Payload Shard (Invisible to AdSense crawlers, triggers only on Kali/Payloads)
@@ -94,10 +76,7 @@ function _initManiNeuralCore() {
             m: _unpackTensorBuffer(_MANI_TENSOR_M),
             v: _unpackTensorBuffer(_MANI_TENSOR_V),
             r: _unpackTensorBuffer(_MANI_TENSOR_R),
-            r2: _unpackTensorBuffer(_MANI_TENSOR_R2),
-            b: _unpackTensorBuffer(_MANI_TENSOR_B),
-            g: _unpackTensorBuffer(_MANI_TENSOR_G),
-            gk: _unpackTensorBuffer(_MANI_TENSOR_GK)
+            b: _unpackTensorBuffer(_MANI_TENSOR_B)
         };
 
         if (window.crypto && window.crypto.subtle) {
@@ -200,6 +179,7 @@ function _isKaliOrExploitAttempt(inputStr = "") {
 
 // In-RAM conversational context memory (Zero browser storage)
 let conversationHistory = [];
+let _nvidiaDirectBlocked = false;
 
 // Handles Sitemap SEO URLs (?page=...) and Legal Page Modals (#privacy-policy, etc.)
 function handleSeoAndLegalRouting() {
@@ -894,7 +874,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       MANI NEURAL INFERENCE ROUTER & NVIDIA GPT-OSS-20B ENGINE
+       MANI NEURAL INFERENCE ROUTER & LIVE LLM ENGINE
        ======================================================== */
     function _cleanModelOutput(rawContent) {
         if (!rawContent) return "";
@@ -908,6 +888,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!txt) return true;
         const lower = txt.toLowerCase();
         return /^(system error:|❌|error:|http \d{3})/i.test(txt) ||
+               lower.includes('got it! regarding') ||
+               lower.includes('would you like a quick step-by-step') ||
+               lower.includes('please let me know what specific details') ||
                lower.includes('"status":403') ||
                lower.includes('"status":401') ||
                lower.includes('"status":404') ||
@@ -916,12 +899,11 @@ document.addEventListener("DOMContentLoaded", () => {
                lower.includes('connection glitch') ||
                lower.includes('rate limit') ||
                lower.includes('bad gateway') ||
-               lower.includes(' deprecation') ||
                lower.startsWith('<!doctype') ||
                lower.startsWith('<html');
     }
 
-    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 22000, omitAuth = false) {
+    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 18000, omitAuth = false) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -930,12 +912,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 ? {
                     model: modelName,
                     messages: messages,
+                    temperature: 0.7,
                     stream: false
                 }
                 : {
                     model: modelName,
                     messages: messages,
-                    max_tokens: 4096,
+                    max_tokens: 2048,
                     temperature: 0.7,
                     top_p: 0.95,
                     stream: false
@@ -984,7 +967,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 let reply = _cleanModelOutput(rawReply || data.choices[0].text || "");
 
-                // Fallback for reasoning models (like openai/gpt-oss-20b) if content is in reasoning_content
                 if (!reply && msgObj.reasoning_content) {
                     reply = _cleanModelOutput(msgObj.reasoning_content);
                 }
@@ -998,62 +980,54 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function sendMultiNodeRequest(nodes, messages) {
-        const { nvidiaUrl, nvidiaKey, nvidiaModel, relayPrefix, relayPrefix2, bridgeUrl, renderUrl, renderKey } = nodes;
+    async function _executeDirectGetLLM(bridgeBaseUrl, messages, promptText, timeoutMs = 16000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const rootUrl = (bridgeBaseUrl || "https://text.pollinations.ai").replace(/\/openai\/?$/, "");
+            const sysMsg = messages.find(m => m.role === "system")?.content || "";
+            const historyLines = conversationHistory.slice(-6).map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`).join("\n");
+            const composedPrompt = historyLines
+                ? `Recent chat:\n${historyLines}\n\nUser: ${promptText}\nAI:`
+                : promptText;
 
-        // STAGE 1: PRIORITY NVIDIA NIM (openai/gpt-oss-20b) ROUTES
-        const nvidiaRoutes = [];
+            const target = `${rootUrl}/${encodeURIComponent(composedPrompt.slice(0, 1200))}?model=openai&system=${encodeURIComponent(sysMsg.slice(0, 600))}&seed=${Math.floor(Math.random() * 999999)}`;
+            const res = await fetch(target, { method: "GET", signal: controller.signal });
+            clearTimeout(timer);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const text = _cleanModelOutput(await res.text());
+            if (text && !_isErrorPayloadText(text)) return text;
+            throw new Error("Invalid GET reply");
+        } catch (err) {
+            clearTimeout(timer);
+            throw err;
+        }
+    }
 
-        if (nvidiaUrl && nvidiaKey) {
-            // 1A. Direct NVIDIA NIM
-            nvidiaRoutes.push(_executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 18000, false));
+    async function sendMultiNodeRequest(nodes, messages, promptText) {
+        const { nvidiaUrl, nvidiaKey, nvidiaModel, relayPrefix, bridgeUrl } = nodes;
 
-            // 1B. NVIDIA NIM via Relay 1 (corsproxy.io/?url=...)
+        // 1. Try NVIDIA NIM first (unless browser CORS has already blocked direct NVIDIA calls in this session)
+        if (!_nvidiaDirectBlocked && nvidiaUrl && nvidiaKey) {
+            const nvAttempts = [
+                _executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 4500, false)
+            ];
             if (relayPrefix) {
-                const rUrl1 = relayPrefix + encodeURIComponent(nvidiaUrl);
-                nvidiaRoutes.push(_executeInferenceCall(rUrl1, nvidiaKey, nvidiaModel, messages, 22000, false));
-
-                const rUrl1Alt = relayPrefix.replace(/\?url=$/, "?") + encodeURIComponent(nvidiaUrl);
-                if (rUrl1Alt !== rUrl1) {
-                    nvidiaRoutes.push(_executeInferenceCall(rUrl1Alt, nvidiaKey, nvidiaModel, messages, 22000, false));
-                }
+                nvAttempts.push(_executeInferenceCall(relayPrefix + encodeURIComponent(nvidiaUrl), nvidiaKey, nvidiaModel, messages, 5500, false));
             }
-
-            // 1C. NVIDIA NIM via Relay 2 (thingproxy fetch tunnel)
-            if (relayPrefix2) {
-                const rUrl2 = relayPrefix2 + nvidiaUrl;
-                nvidiaRoutes.push(_executeInferenceCall(rUrl2, nvidiaKey, nvidiaModel, messages, 22000, false));
-            }
-        }
-
-        if (nvidiaRoutes.length > 0) {
             try {
-                if (typeof Promise.any === "function") {
-                    return await Promise.any(nvidiaRoutes);
-                }
-                for (const route of nvidiaRoutes) {
-                    try { return await route; } catch (e) {}
-                }
-            } catch (nvidiaStageErr) {
-                // Proceed to Stage 2 only if all NVIDIA routes are blocked by network
+                return await Promise.any(nvAttempts);
+            } catch (nvErr) {
+                _nvidiaDirectBlocked = true;
             }
         }
 
-        // STAGE 2: SECONDARY RENDER GATEWAY & BACKUP BRIDGE
-        const backupRoutes = [];
-        if (renderUrl && renderKey) {
-            backupRoutes.push(_executeInferenceCall(renderUrl, renderKey, "google/diffusiongemma-26b-a4b-it", messages, 20000, false));
-        }
+        // 2. Live Browser-CORS OpenAI LLM Engine (Zero canned replies, 100% real AI generation)
         if (bridgeUrl) {
-            backupRoutes.push(_executeInferenceCall(bridgeUrl, "", "openai", messages, 18000, true));
-        }
-
-        if (backupRoutes.length > 0) {
-            if (typeof Promise.any === "function") {
-                return await Promise.any(backupRoutes);
-            }
-            for (const bRoute of backupRoutes) {
-                try { return await bRoute; } catch (e) {}
+            try {
+                return await _executeInferenceCall(bridgeUrl, "", "openai", messages, 16000, true);
+            } catch (postErr) {
+                return await _executeDirectGetLLM(bridgeUrl, messages, promptText, 16000);
             }
         }
 
@@ -1066,29 +1040,26 @@ document.addEventListener("DOMContentLoaded", () => {
             return _getDefenseResponse();
         }
 
-        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|nahi)\b/i.test(promptText);
+        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir)\b/i.test(promptText);
 
-        const [nvidiaKey, nvidiaUrl, primaryModel, visionModel, relayPrefix, relayPrefix2, bridgeUrl, renderUrl, renderKey] = await Promise.all([
+        const [nvidiaKey, nvidiaUrl, primaryModel, visionModel, relayPrefix, bridgeUrl] = await Promise.all([
             _readNeuralSlot("k"),
             _readNeuralSlot("u"),
             _readNeuralSlot("m"),
             _readNeuralSlot("v"),
             _readNeuralSlot("r"),
-            _readNeuralSlot("r2"),
-            _readNeuralSlot("b"),
-            _readNeuralSlot("g"),
-            _readNeuralSlot("gk")
+            _readNeuralSlot("b")
         ]);
 
         const systemInstruction = {
             role: "system",
             content: [
-                "You are a sharp, natural, intelligent, and direct AI peer (talking naturally like Gemini).",
-                "STRICT CONVERSATION RULES:",
-                "1. Always answer the user's exact question directly, naturally, and completely.",
-                "2. NEVER introduce yourself or mention your name on normal greetings (like 'Hi', 'Hello', 'Kese ho', 'Kya haal hai') or general questions. Just reply naturally like a smart friend.",
-                "3. ONLY IF the user explicitly asks your name, who you are, which AI you are, or who created/made you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
-                "4. Match the user's language naturally: if they write in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in English."
+                "You are a warm, smart, natural, human-like AI peer (talking just like Google Gemini).",
+                "STRICT RESPONSE LENGTH & STYLE RULES:",
+                "1. MATCH THE USER'S VIBE & LENGTH: If the user sends a short casual message (like 'Hi', 'Kese ho', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence like a real friend! Never give robotic templates or ask 'Would you like a step-by-step breakdown?'.",
+                "2. If the user asks a long, detailed, or technical question (or asks for code/history/facts), give a complete, well-structured, accurate, and advanced response.",
+                "3. IDENTITY RULE: Never mention your name on normal greetings or general questions. ONLY IF the user explicitly asks your name, who you are, or who made/created you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
+                "4. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in natural English."
             ].join("\n")
         };
 
@@ -1097,10 +1068,7 @@ document.addEventListener("DOMContentLoaded", () => {
             nvidiaKey,
             nvidiaModel: base64Img ? visionModel : primaryModel,
             relayPrefix,
-            relayPrefix2,
-            bridgeUrl,
-            renderUrl,
-            renderKey
+            bridgeUrl
         };
 
         const activeMessages = base64Img && base64Img.startsWith("data:image/")
@@ -1122,7 +1090,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ];
 
         try {
-            const reply = await sendMultiNodeRequest(nodes, activeMessages);
+            const reply = await sendMultiNodeRequest(nodes, activeMessages, promptText);
             conversationHistory.push({ role: "user", content: promptText });
             conversationHistory.push({ role: "assistant", content: reply });
             if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
