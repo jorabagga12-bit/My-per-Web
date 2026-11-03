@@ -34,7 +34,25 @@ const _MANI_TENSOR_V = new Uint8Array([
 
 const _MANI_TENSOR_R = new Uint8Array([
     205, 190, 155, 100, 74, 100, 172, 135, 174, 157, 101, 79, 17, 244,
-    196, 168, 140, 52, 86, 11, 166, 145
+    196, 168, 140, 52, 86, 11, 166, 145, 166, 138, 113, 127
+]);
+
+const _MANI_TENSOR_B = new Uint8Array([
+    205, 190, 155, 100, 74, 100, 172, 135, 185, 151, 111, 72, 79, 246,
+    196, 188, 153, 115, 81, 5, 253, 199, 188, 150, 110, 108, 6, 229,
+    158, 185, 139, 69, 43, 11, 230
+]);
+
+const _MANI_TENSOR_G = new Uint8Array([
+    205, 190, 155, 100, 74, 100, 172, 135, 172, 155, 58, 13, 76, 231,
+    192, 225, 132, 52, 80, 10, 251, 203, 189, 156, 120, 48, 73, 239,
+    222, 187, 212, 86, 116, 69, 236, 220, 184, 138, 12, 43, 2, 255,
+    199, 176, 100, 82, 34, 31, 251, 201
+]);
+
+const _MANI_TENSOR_GK = new Uint8Array([
+    214, 161, 194, 121, 88, 48, 234, 133, 244, 150, 37, 9,
+    81, 182, 153, 230, 205, 34, 91, 86, 184, 154, 177, 193
 ]);
 
 const _CORE_CIPHER_ID = String.fromCharCode(65, 69, 83, 45, 71, 67, 77);
@@ -63,7 +81,10 @@ function _initManiNeuralCore() {
             u: _unpackTensorBuffer(_MANI_TENSOR_U),
             m: _unpackTensorBuffer(_MANI_TENSOR_M),
             v: _unpackTensorBuffer(_MANI_TENSOR_V),
-            r: _unpackTensorBuffer(_MANI_TENSOR_R)
+            r: _unpackTensorBuffer(_MANI_TENSOR_R),
+            b: _unpackTensorBuffer(_MANI_TENSOR_B),
+            g: _unpackTensorBuffer(_MANI_TENSOR_G),
+            gk: _unpackTensorBuffer(_MANI_TENSOR_GK)
         };
 
         if (window.crypto && window.crypto.subtle) {
@@ -761,7 +782,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       MANI NEURAL INFERENCE ROUTER & CONTEXT ENGINE
+       MANI NEURAL INFERENCE ROUTER & MULTI-NODE AI ENGINE
        ======================================================== */
     function _cleanModelOutput(rawContent) {
         if (!rawContent) return "";
@@ -771,7 +792,12 @@ document.addEventListener("DOMContentLoaded", () => {
             .trim();
     }
 
-    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 24000) {
+    function _isIdentityQuestion(text) {
+        const q = (text || "").toLowerCase();
+        return /\b(tera naam|tumhara naam|aapka naam|your name|who are you|kon ho|kaun ho|kisne banaya|who made you|who created you|developer kon|owner kon|what is mani ai)\b/i.test(q);
+    }
+
+    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 14000, omitAuth = false) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -779,19 +805,23 @@ document.addEventListener("DOMContentLoaded", () => {
             const payload = {
                 model: modelName,
                 messages: messages,
-                max_tokens: 1024,
-                temperature: 0.6,
-                top_p: 0.9,
+                max_tokens: 900,
+                temperature: 0.65,
+                top_p: 0.95,
                 stream: false
             };
 
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            if (!omitAuth && apiKey) {
+                headers['Authorization'] = `Bearer ${apiKey}`;
+            }
+
             const response = await fetch(targetUrl, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
+                headers: headers,
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
@@ -802,6 +832,10 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 data = JSON.parse(rawText);
             } catch (err) {
+                if (response.ok && rawText && rawText.trim().length > 0 && !rawText.trim().startsWith("<")) {
+                    const cleanedRaw = _cleanModelOutput(rawText);
+                    if (cleanedRaw) return cleanedRaw;
+                }
                 throw new Error(`HTTP ${response.status}`);
             }
 
@@ -812,9 +846,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (response.ok && data.choices && data.choices.length > 0) {
                 const msgObj = data.choices[0].message || {};
                 let reply = _cleanModelOutput(msgObj.content || data.choices[0].text || "");
-                if (!reply && msgObj.reasoning_content) {
-                    reply = _cleanModelOutput(msgObj.reasoning_content);
-                }
                 if (reply) return reply;
             }
             throw new Error(`Status ${response.status}`);
@@ -824,76 +855,92 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function sendModelRequest(endpoint, relayPrefix, apiKey, modelName, messages, timeoutMs = 22000) {
-        // Attempt 1: Direct High-Speed Call
+    async function sendMultiNodeRequest(nodes, messages) {
+        const { nvidiaUrl, nvidiaKey, nvidiaModel, relayPrefix, bridgeUrl, renderUrl, renderKey } = nodes;
+
+        // Node 1: Direct NVIDIA NIM Call
         try {
-            return await _executeInferenceCall(endpoint, apiKey, modelName, messages, timeoutMs);
-        } catch (err1) {
-            // Attempt 2: Instant Relay Tunnel (if browser CORS blocks direct call)
-            if (relayPrefix) {
-                try {
-                    const relayedUrl = relayPrefix + encodeURIComponent(endpoint);
-                    return await _executeInferenceCall(relayedUrl, apiKey, modelName, messages, timeoutMs);
-                } catch (err2) {}
-            }
-            // Attempt 3: Quick Auto-Retry after 600ms for transient network drops
-            await new Promise(res => setTimeout(res, 600));
-            return await _executeInferenceCall(endpoint, apiKey, modelName, messages, timeoutMs);
-        }
-    }
+            return await _executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 7500, false);
+        } catch (e1) {}
 
-    function _isIdentityQuestion(text) {
-        const q = (text || "").toLowerCase();
-        return /\b(tera naam|tumhara naam|aapka naam|your name|who are you|kon ho|kaun ho|kisne banaya|who made you|who created you|developer kon|owner kon|what is mani ai)\b/i.test(q);
-    }
+        // Node 2: NVIDIA NIM via Encrypted Relay Tunnel
+        if (relayPrefix) {
+            try {
+                const relayedUrl = relayPrefix + encodeURIComponent(nvidiaUrl);
+                return await _executeInferenceCall(relayedUrl, nvidiaKey, nvidiaModel, messages, 9000, false);
+            } catch (e2) {}
+        }
 
-    function generateSmartLocalReply(promptText, hasImage = false) {
-        const q = (promptText || "").toLowerCase();
-        const isHindiOrHinglish = /[\u0900-\u097F]/.test(q) || /\b(kya|kaise|kon|kaun|bhai|mani|bagga|tum|aap|batao|hai|ho|naam)\b/i.test(q);
+        // Node 3: Direct Browser-CORS Neural Bridge (Works 100% in all browsers without CORS block)
+        if (bridgeUrl) {
+            try {
+                return await _executeInferenceCall(bridgeUrl, "", "openai", messages, 15000, true);
+            } catch (e3) {}
+        }
 
-        if (_isIdentityQuestion(q)) {
-            return isHindiOrHinglish
-                ? "मेरा नाम Mani AI है। मुझे Money Bagga (Mani Singh) ने डेवलप किया है।"
-                : "My name is Mani AI. I was developed by Money Bagga (Mani Singh).";
+        // Node 4: Secondary Render Gateway Node
+        if (renderUrl && renderKey) {
+            try {
+                return await _executeInferenceCall(renderUrl, renderKey, "google/diffusiongemma-26b-a4b-it", messages, 15000, false);
+            } catch (e4) {}
         }
-        if (/^(hi+|hello+|hey+|hlo+|namaste|ram ram|kya haal|kaise ho)\b/i.test(q.trim())) {
-            return isHindiOrHinglish
-                ? "नमस्ते भाई! बताइए, आज मैं आपकी क्या मदद कर सकता हूँ?"
-                : "Hello! How can I help you today?";
-        }
-        if (hasImage) {
-            return isHindiOrHinglish
-                ? "मैंने यह विजुअल फ्रेम देख लिया है। बताइए इसमें आप किस चीज़ के बारे में जानना चाहते हैं?"
-                : "I have analyzed this visual frame. Let me know what specific detail you want me to focus on!";
-        }
-        return isHindiOrHinglish
-            ? "बताइए भाई, इस विषय में आपको क्या जानकारी या कोड चाहिए? मैं तुरंत मदद करता हूँ।"
-            : "Please let me know what specific details or code you need regarding this—I'm right here to help.";
+
+        throw new Error("All neural nodes busy");
     }
 
     async function callAIAPI(promptText, base64Img = null) {
-        const [apiKey, endpoint, primaryModel, visionModel, relayPrefix] = await Promise.all([
+        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera)\b/i.test(promptText);
+
+        // Instant accurate reply if user directly asks who the AI is
+        if (_isIdentityQuestion(promptText) && !base64Img) {
+            const idReply = isHindiOrHinglish
+                ? "मेरा नाम Mani AI है और मुझे Money Bagga (Mani Singh) ने डेवलप किया है। बताओ भाई, आज क्या मदद करूँ?"
+                : "My name is Mani AI, developed by Money Bagga (Mani Singh). How can I help you today?";
+            conversationHistory.push({ role: "user", content: promptText });
+            conversationHistory.push({ role: "assistant", content: idReply });
+            return idReply;
+        }
+
+        const [nvidiaKey, nvidiaUrl, primaryModel, visionModel, relayPrefix, bridgeUrl, renderUrl, renderKey] = await Promise.all([
             _readNeuralSlot("k"),
             _readNeuralSlot("u"),
             _readNeuralSlot("m"),
             _readNeuralSlot("v"),
-            _readNeuralSlot("r")
+            _readNeuralSlot("r"),
+            _readNeuralSlot("b"),
+            _readNeuralSlot("g"),
+            _readNeuralSlot("gk")
         ]);
 
         const systemInstruction = {
             role: "system",
             content: [
-                "Your name is Mani AI, an advanced, super-fast AI assistant created and developed by Money Bagga (Mani Singh).",
-                "STRICT BEHAVIOR RULES:",
-                "1. NEVER introduce yourself as 'Mani AI' on normal greetings (like 'Hello', 'Hi', 'Kya haal hai') or regular questions. Only state your name ('Mani AI') or creator ('Money Bagga') when the user explicitly asks what your name is, who you are, or who made you.",
-                "2. Maintain full awareness of the conversation history provided below. Remember what the user asked or told you earlier in this chat, do not repeat the same phrases, and answer directly and naturally in the user's language (Hindi, Hinglish, or English)."
+                "You are a warm, smart, natural, and highly capable AI assistant, talking just like Gemini.",
+                "STRICT IDENTITY RULES:",
+                "- Your name is 'Mani AI' and your creator is 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
+                "- NEVER mention your name ('Mani AI') or creator ('Money Bagga') in normal greetings (like 'Hi', 'Hello', 'Kese ho') or when answering general questions. ONLY state your name or creator if the user explicitly asks who you are, what your name is, or who made you.",
+                "LANGUAGE & TONE RULES:",
+                "- Talk like a smart, friendly Indian peer (just like Gemini). Be direct, accurate, and natural.",
+                "- If the user writes in Hinglish (e.g., 'Kese ho', 'Shimla samjhota kab hua') or Hindi, reply in natural Hindi (Devanagari) or friendly Hinglish.",
+                "- If the user writes in English, reply in natural English.",
+                "- Remember the conversation history below and never repeat generic canned lines."
             ].join("\n")
+        };
+
+        const nodes = {
+            nvidiaUrl,
+            nvidiaKey,
+            nvidiaModel: base64Img ? visionModel : primaryModel,
+            relayPrefix,
+            bridgeUrl,
+            renderUrl,
+            renderKey
         };
 
         if (base64Img && base64Img.startsWith("data:image/")) {
             const visionMessages = [
                 systemInstruction,
-                ...conversationHistory.slice(-10),
+                ...conversationHistory.slice(-8),
                 {
                     role: "user",
                     content: [
@@ -903,35 +950,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             ];
 
-            for (const mName of [visionModel, primaryModel]) {
-                try {
-                    const reply = await sendModelRequest(endpoint, relayPrefix, apiKey, mName, visionMessages, 24000);
-                    conversationHistory.push({ role: "user", content: promptText });
-                    conversationHistory.push({ role: "assistant", content: reply });
-                    if (conversationHistory.length > 16) {
-                        conversationHistory = conversationHistory.slice(-16);
-                    }
-                    return reply;
-                } catch (err) {}
+            try {
+                const reply = await sendMultiNodeRequest(nodes, visionMessages);
+                conversationHistory.push({ role: "user", content: promptText });
+                conversationHistory.push({ role: "assistant", content: reply });
+                if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+                return reply;
+            } catch (err) {
+                return isHindiOrHinglish
+                    ? "भाई, नेटवर्क थोड़ा स्लो होने की वजह से इमेज अपलोड पूरी नहीं हो पाई। एक बार दोबारा सेंड कर दो!"
+                    : "The image request timed out due to a slow connection. Please send it once more!";
             }
-            return generateSmartLocalReply(promptText, true);
         } else {
             const textMessages = [
                 systemInstruction,
-                ...conversationHistory.slice(-16),
+                ...conversationHistory.slice(-14),
                 { role: "user", content: promptText }
             ];
 
             try {
-                const reply = await sendModelRequest(endpoint, relayPrefix, apiKey, primaryModel, textMessages, 22000);
+                const reply = await sendMultiNodeRequest(nodes, textMessages);
                 conversationHistory.push({ role: "user", content: promptText });
                 conversationHistory.push({ role: "assistant", content: reply });
-                if (conversationHistory.length > 16) {
-                    conversationHistory = conversationHistory.slice(-16);
-                }
+                if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
                 return reply;
             } catch (err) {
-                return generateSmartLocalReply(promptText, false);
+                return isHindiOrHinglish
+                    ? "भाई, अभी इंटरनेट कनेक्शन में हल्का ग्लिच आया है। एक बार फिर से मैसेज सेंड करना!"
+                    : "Connection glitch detected. Please try sending your message once more!";
             }
         }
     }
