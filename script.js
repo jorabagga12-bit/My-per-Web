@@ -792,6 +792,15 @@ document.addEventListener("DOMContentLoaded", () => {
             .trim();
     }
 
+    function _isErrorPayloadText(txt) {
+        if (!txt) return true;
+        return /^(system error:|❌|error:|http \d{3})/i.test(txt) ||
+               txt.includes('"status":403') ||
+               txt.includes('"status":401') ||
+               txt.includes('Authorization failed') ||
+               txt.includes('AI Server Error');
+    }
+
     function _isIdentityQuestion(text) {
         const q = (text || "").toLowerCase();
         return /\b(tera naam|tumhara naam|aapka naam|your name|who are you|kon ho|kaun ho|kisne banaya|who made you|who created you|developer kon|owner kon|what is mani ai)\b/i.test(q);
@@ -802,14 +811,20 @@ document.addEventListener("DOMContentLoaded", () => {
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const payload = {
-                model: modelName,
-                messages: messages,
-                max_tokens: 900,
-                temperature: 0.65,
-                top_p: 0.95,
-                stream: false
-            };
+            const payload = omitAuth
+                ? {
+                    model: modelName,
+                    messages: messages,
+                    stream: false
+                }
+                : {
+                    model: modelName,
+                    messages: messages,
+                    max_tokens: 900,
+                    temperature: 0.65,
+                    top_p: 0.95,
+                    stream: false
+                };
 
             const headers = {
                 'Content-Type': 'application/json',
@@ -834,7 +849,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch (err) {
                 if (response.ok && rawText && rawText.trim().length > 0 && !rawText.trim().startsWith("<")) {
                     const cleanedRaw = _cleanModelOutput(rawText);
-                    if (cleanedRaw) return cleanedRaw;
+                    if (cleanedRaw && !_isErrorPayloadText(cleanedRaw)) return cleanedRaw;
                 }
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -846,7 +861,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (response.ok && data.choices && data.choices.length > 0) {
                 const msgObj = data.choices[0].message || {};
                 let reply = _cleanModelOutput(msgObj.content || data.choices[0].text || "");
-                if (reply) return reply;
+                if (reply && !_isErrorPayloadText(reply)) return reply;
             }
             throw new Error(`Status ${response.status}`);
         } catch (err) {
@@ -860,29 +875,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Node 1: Direct NVIDIA NIM Call
         try {
-            return await _executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 7500, false);
+            return await _executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 6000, false);
         } catch (e1) {}
 
         // Node 2: NVIDIA NIM via Encrypted Relay Tunnel
         if (relayPrefix) {
             try {
                 const relayedUrl = relayPrefix + encodeURIComponent(nvidiaUrl);
-                return await _executeInferenceCall(relayedUrl, nvidiaKey, nvidiaModel, messages, 9000, false);
+                return await _executeInferenceCall(relayedUrl, nvidiaKey, nvidiaModel, messages, 7500, false);
             } catch (e2) {}
         }
 
-        // Node 3: Direct Browser-CORS Neural Bridge (Works 100% in all browsers without CORS block)
-        if (bridgeUrl) {
+        // Node 3: Secondary Render Gateway Node (Using your active NVIDIA model instead of invalid model ID)
+        if (renderUrl && renderKey) {
             try {
-                return await _executeInferenceCall(bridgeUrl, "", "openai", messages, 15000, true);
+                return await _executeInferenceCall(renderUrl, renderKey, nvidiaModel, messages, 11000, false);
             } catch (e3) {}
         }
 
-        // Node 4: Secondary Render Gateway Node
-        if (renderUrl && renderKey) {
+        // Node 4: Direct Browser-CORS Neural Bridge (Works 100% in all browsers without CORS block or 403)
+        if (bridgeUrl) {
             try {
-                return await _executeInferenceCall(renderUrl, renderKey, "google/diffusiongemma-26b-a4b-it", messages, 15000, false);
-            } catch (e4) {}
+                return await _executeInferenceCall(bridgeUrl, "", "openai", messages, 14000, true);
+            } catch (e4) {
+                try {
+                    const rootBridge = bridgeUrl.replace(/\/openai\/?$/, "/");
+                    return await _executeInferenceCall(rootBridge, "", "openai", messages, 14000, true);
+                } catch (e5) {}
+            }
         }
 
         throw new Error("All neural nodes busy");
