@@ -779,7 +779,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const payload = {
                 model: modelName,
                 messages: messages,
-                max_tokens: 2048,
+                max_tokens: 1024,
                 temperature: 0.6,
                 top_p: 0.9,
                 stream: false
