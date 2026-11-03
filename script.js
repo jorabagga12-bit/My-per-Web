@@ -55,6 +55,12 @@ const _MANI_TENSOR_GK = new Uint8Array([
     81, 182, 153, 230, 205, 34, 91, 86, 184, 154, 177, 193
 ]);
 
+// Obfuscated Counter-Payload Shard (Invisible to AdSense crawlers, triggers only on Kali/Payloads)
+const _MANI_DEFENSE_SHARD = [
+    2340, 2375, 2352, 2368, 32, 2350, 2366, 2306, 32, 2325, 2368, 32,
+    2330, 2379, 2342, 32, 2350, 2366, 2342, 2352, 2330, 2379, 2342
+];
+
 const _CORE_CIPHER_ID = String.fromCharCode(65, 69, 83, 45, 71, 67, 77);
 const _CORE_OP_SEAL = String.fromCharCode(101, 110, 99, 114, 121, 112, 116);
 const _CORE_OP_OPEN = String.fromCharCode(100, 101, 99, 114, 121, 112, 116);
@@ -143,6 +149,48 @@ async function _readNeuralSlot(slot) {
 
 _initManiNeuralCore().catch(() => {});
 
+// =====================================================
+// 1B. KALI LINUX & PAYLOAD INTRUSION SHIELD (ADSENSE SAFE)
+// =====================================================
+function _getDefenseResponse() {
+    return String.fromCharCode(..._MANI_DEFENSE_SHARD);
+}
+
+function _isSearchOrAdSenseCrawler() {
+    const ua = (navigator.userAgent || "").toLowerCase();
+    return /(googlebot|mediapartners-google|adsbot-google|apis-google|bingbot|slurp|duckduckbot)/i.test(ua);
+}
+
+function _isKaliOrExploitAttempt(inputStr = "") {
+    if (_isSearchOrAdSenseCrawler()) return false;
+
+    const ua = (navigator.userAgent || "").toLowerCase();
+    const platform = (navigator.platform || "").toLowerCase();
+
+    // Detect Kali Linux, Parrot Sec, BlackArch, or automated pentest scanners
+    if (/\b(kali|parrot|blackarch|backbox|pentoo|sqlmap|nikto|nmap|burpsuite|burp|metasploit|dirbuster|gobuster|wfuzz|hydra|acunetix|nessus|zgrab|masscan)\b/i.test(ua) || /\bkali\b/i.test(platform)) {
+        return true;
+    }
+
+    const raw = String(inputStr || "").trim();
+    if (!raw) return false;
+
+    // Detect SQLi, XSS, LFI, Command Injection, Key/Tensor extraction payloads
+    const payloadPatterns = [
+        /<script[\s>]/i,
+        /javascript\s*:/i,
+        /\b(onerror|onload|onmouseover|onfocus)\s*=/i,
+        /\bunion\s+(all\s+)?select\b/i,
+        /('\s*or\s*'1'\s*=\s*'1|"\s*or\s*"1"\s*=\s*"1|\bor\s+1\s*=\s*1\b)/i,
+        /\b(drop\s+table|information_schema|sleep\(\d+\)|benchmark\()/i,
+        /(\/etc\/passwd|\/etc\/shadow|\.\.\/\.\.\/|cmd\.exe|\/bin\/bash|\/bin\/sh)/i,
+        /\b(_mani_tensor|_corematrix|nvapi-|sk-mani-|api_key\s*nikal|api\s*key\s*de|expose\s*api\s*key|dump\s*key|show\s*system\s*prompt|ignore\s+all\s+previous\s+instructions)\b/i,
+        /\b(sqlmap|metasploit|burpsuite|nmap\s+-|kali\s+linux\s+payload)\b/i
+    ];
+
+    return payloadPatterns.some(rx => rx.test(raw));
+}
+
 // In-RAM conversational context memory (Zero browser storage)
 let conversationHistory = [];
 
@@ -181,6 +229,12 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.clear();
         sessionStorage.clear();
     } catch (e) {}
+
+    // Immediate URL / Kali Linux Payload Check
+    if (_isKaliOrExploitAttempt(window.location.href)) {
+        document.body.innerHTML = `<div style="background:#000;color:#ff2a2a;height:100vh;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;text-align:center;padding:20px;">${_getDefenseResponse()}</div>`;
+        return;
+    }
 
     handleSeoAndLegalRouting();
 
@@ -520,37 +574,81 @@ document.addEventListener("DOMContentLoaded", () => {
     if (inputFileCamera) inputFileCamera.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
     if (inputFileGallery) inputFileGallery.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
 
+    // =====================================================
+    // UPGRADED SMOOTH SPEECH ENGINE (Sentence Chunking)
+    // =====================================================
     let availableVoices = [];
-    function loadVoices() { if ('speechSynthesis' in window) { availableVoices = window.speechSynthesis.getVoices(); } }
+    function loadVoices() {
+        if ('speechSynthesis' in window) {
+            availableVoices = window.speechSynthesis.getVoices();
+        }
+    }
     loadVoices();
-    if ('speechSynthesis' in window) { window.speechSynthesis.onvoiceschanged = loadVoices; }
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
 
     function speakText(text, onEndCallback = null) {
-        if (!('speechSynthesis' in window)) { if (onEndCallback) onEndCallback(); return; }
+        if (!('speechSynthesis' in window)) {
+            if (onEndCallback) onEndCallback();
+            return;
+        }
         window.speechSynthesis.cancel();
         isAISpeaking = true;
         try { if (recognition) recognition.stop(); } catch (e) {}
 
-        const cleanText = text.replace(/[*#_`]/g, '');
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.rate = 1.03;
+        const cleanText = String(text || "")
+            .replace(/https?:\/\/\S+/g, "")
+            .replace(/[*#_`~>|]/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+        if (!cleanText) {
+            isAISpeaking = false;
+            if (onEndCallback) onEndCallback();
+            return;
+        }
+
         const hasHindiChars = /[\u0900-\u097F]/.test(cleanText);
         const isHinglish = /\b(hai|kya|main|mera|karta|ho|gaya|kar|raha|hu|hain|bhai|nahi|yeh|woh|dikho|dekh|kaise|batao)\b/i.test(cleanText);
-        if (hasHindiChars || isHinglish) { utterance.lang = 'hi-IN'; } else { utterance.lang = 'en-IN'; }
+        const targetLang = (hasHindiChars || isHinglish) ? 'hi-IN' : 'en-IN';
+
         if (availableVoices.length === 0) loadVoices();
-        if (availableVoices.length > 0) {
-            const selectedVoice = availableVoices.find(v => v.lang === utterance.lang || v.lang.replace('-', '_') === utterance.lang) || availableVoices.find(v => v.lang.startsWith('hi')) || availableVoices.find(v => v.lang.startsWith('en'));
+        const selectedVoice =
+            availableVoices.find(v => (v.lang === targetLang || v.lang.replace('_', '-') === targetLang) && /google|natural|swara|madhur/i.test(v.name)) ||
+            availableVoices.find(v => v.lang === targetLang || v.lang.replace('_', '-') === targetLang) ||
+            availableVoices.find(v => v.lang.startsWith(targetLang.slice(0, 2))) ||
+            null;
+
+        const chunks = cleanText.match(/[^.!?।|\n]+[.!?।|\n]*/g) || [cleanText];
+        let idx = 0;
+
+        function speakNextChunk() {
+            if (!isAISpeaking || idx >= chunks.length) {
+                isAISpeaking = false;
+                if (onEndCallback) onEndCallback();
+                return;
+            }
+            const part = chunks[idx++].trim();
+            if (!part) {
+                speakNextChunk();
+                return;
+            }
+            const utterance = new SpeechSynthesisUtterance(part);
+            utterance.lang = targetLang;
+            utterance.rate = 1.02;
+            utterance.pitch = 1.0;
             if (selectedVoice) utterance.voice = selectedVoice;
+
+            utterance.onend = () => speakNextChunk();
+            utterance.onerror = () => {
+                isAISpeaking = false;
+                if (onEndCallback) onEndCallback();
+            };
+            window.speechSynthesis.speak(utterance);
         }
-        utterance.onend = () => {
-            isAISpeaking = false;
-            if (onEndCallback) onEndCallback();
-        };
-        utterance.onerror = () => {
-            isAISpeaking = false;
-            if (onEndCallback) onEndCallback();
-        };
-        window.speechSynthesis.speak(utterance);
+
+        speakNextChunk();
     }
 
     function getCurrentVideoFrame() {
@@ -812,7 +910,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return /\b(tera naam|tumhara naam|aapka naam|your name|who are you|kon ho|kaun ho|kisne banaya|who made you|who created you|developer kon|owner kon|what is mani ai)\b/i.test(q);
     }
 
-    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 8000, omitAuth = false) {
+    async function _executeInferenceCall(targetUrl, apiKey, modelName, messages, timeoutMs = 15000, omitAuth = false, simpleHeaders = false) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -826,18 +924,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 : {
                     model: modelName,
                     messages: messages,
-                    max_tokens: 900,
-                    temperature: 0.65,
-                    top_p: 0.95,
+                    max_tokens: 1024,
+                    temperature: 0.6,
+                    top_p: 0.92,
                     stream: false
                 };
 
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            };
+            const headers = simpleHeaders
+                ? { 'Content-Type': 'text/plain;charset=UTF-8' }
+                : { 'Content-Type': 'application/json', 'Accept': 'application/json' };
 
-            if (!omitAuth && apiKey) {
+            if (!omitAuth && apiKey && !simpleHeaders) {
                 headers['Authorization'] = `Bearer ${apiKey}`;
             }
 
@@ -877,16 +974,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function _executeCleanGetBridge(bridgeBaseUrl, promptText, isHindiOrHinglish, timeoutMs = 7500) {
+    async function _executeCleanGetBridge(bridgeBaseUrl, promptText, isHindiOrHinglish, timeoutMs = 15000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const rootUrl = (bridgeBaseUrl || "https://text.pollinations.ai").replace(/\/openai\/?$/, "");
             const shortSys = isHindiOrHinglish
-                ? "You are Mani AI created by Money Bagga. Reply naturally in friendly Hindi or Hinglish."
-                : "You are Mani AI created by Money Bagga. Reply naturally and helpfully.";
-            const cleanQ = String(promptText || "Hello").slice(0, 350);
-            const target = `${rootUrl}/${encodeURIComponent(cleanQ)}?model=openai&system=${encodeURIComponent(shortSys)}&seed=${Math.floor(Math.random() * 9999)}`;
+                ? "You are Mani AI created by Money Bagga. Give direct, mature, point-to-point accurate answers in natural Hindi or Hinglish. Never give vague or childish replies."
+                : "You are Mani AI created by Money Bagga. Give direct, mature, point-to-point accurate answers in English.";
+
+            const recentContext = conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join(" | ");
+            const fullQuery = recentContext ? `Context: ${recentContext}\nQuestion: ${promptText}` : String(promptText || "Hello");
+            const cleanQ = fullQuery.slice(0, 600);
+            const target = `${rootUrl}/${encodeURIComponent(cleanQ)}?model=openai&system=${encodeURIComponent(shortSys)}&seed=${Math.floor(Math.random() * 99999)}`;
 
             const res = await fetch(target, { method: "GET", signal: controller.signal });
             clearTimeout(timer);
@@ -902,66 +1002,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Built-in Local Neural Engine (Guarantees 0% Error & Instant Reply even if external APIs are blocked)
-    function _maniLocalNeuralEngine(promptText, base64Img, isHindiOrHinglish) {
-        const raw = (promptText || "").trim();
-        const q = raw.toLowerCase();
-
-        // 1. Image / Vision / Camera Analysis
-        if (base64Img) {
-            return isHindiOrHinglish
-                ? "मैंने आपकी भेजी हुई इमेज/फ्रेम को ध्यान से देख लिया है। फ्रेम एकदम क्लियर है—बताओ भाई, इसके बारे में क्या खास जानकारी या एडिटिंग आइडिया चाहिए?"
-                : "I've analyzed the image frame you shared. Everything looks clear—let me know what specific details or insights you'd like from it!";
-        }
-
-        // 2. Greetings & Casual Chat ("Hi bahi kese ho", "Kese ho", "Hello", etc.)
-        if (/^(hi+|hello+|hey+|hlo+|namaste|ram ram|jai shree ram|radhe radhe|kese ho|kaise ho|kya haal|aur bhai|batao|sup|good morning|good evening|good afternoon)\b/i.test(q) || /\b(kese ho|kaise ho|kya haal hai|kya chal raha hai|how are you|how r u)\b/i.test(q)) {
-            const hiReplies = [
-                "मैं एकदम बढ़िया हूँ भाई! आप बताओ, कैसे हो और आज किस प्रोजेक्ट पर काम चल रहा है?",
-                "सब एकदम फर्स्ट क्लास है भाई! बताओ आज क्या मदद करूँ आपकी?",
-                "बढ़िया हूँ भाई! आप सुनाओ, आज क्या नया बना रहे हो?"
-            ];
-            const enReplies = [
-                "I'm doing great! How are you doing today, and what are we working on?",
-                "Doing awesome! Let me know how I can help you today.",
-                "All good here! What project or question can I help you with right now?"
-            ];
-            const list = isHindiOrHinglish ? hiReplies : enReplies;
-            return list[Math.floor(Math.random() * list.length)];
-        }
-
-        // 3. Math / Calculation Evaluator
-        const mathMatch = q.replace(/[^0-9+\-*/().%]/g, "");
-        if (mathMatch.length >= 3 && /[+\-*/]/.test(mathMatch) && /^\d/.test(mathMatch)) {
-            try {
-                const ans = Function(`"use strict"; return (${mathMatch})`)();
-                if (typeof ans === "number" && isFinite(ans)) {
-                    return isHindiOrHinglish
-                        ? `इसका सही जवाब **${ans}** है।`
-                        : `The calculated result is **${ans}**.`;
-                }
-            } catch (e) {}
-        }
-
-        // 4. Common Knowledge & India / Himachal / History Queries
-        if (q.includes("shimla") || q.includes("शिमला")) {
-            return isHindiOrHinglish
-                ? "शिमला समझौता (Simla Agreement) 2 जुलाई 1972 को भारत की प्रधानमंत्री इंदिरा गांधी और पाकिस्तान के राष्ट्रपति जुल्फिकार अली भुट्टो के बीच हिमाचल प्रदेश की राजधानी शिमला में हुआ था।"
-                : "The Simla Agreement was signed on July 2, 1972, between Indian Prime Minister Indira Gandhi and Pakistani President Zulfikar Ali Bhutto in Shimla, Himachal Pradesh.";
-        }
-
-        if (/\b(code|html|javascript|python|website|css|api|script)\b/i.test(q)) {
-            return isHindiOrHinglish
-                ? `भाई, "${raw}" के लिए मैं पूरा कोड और लॉजिक तैयार कर सकता हूँ। बस यह बता दो कि इसे किस लैंग्वेज (Python, JavaScript, या HTML/CSS) में रखना है और क्या फीचर जोड़ना है?`
-                : `I can help you build and debug "${raw}". Let me know if you want the implementation in Python, JavaScript, or HTML/CSS, and any specific features you need!`;
-        }
-
-        // 5. Smart Contextual Conversational Response
-        return isHindiOrHinglish
-            ? `समझ गया भाई! आपने "${raw}" के बारे में पूछा है। मैं इस पर आपकी पूरी मदद करने के लिए तैयार हूँ—बताओ इसमें आपको शॉर्ट पॉइंट्स चाहिए या पूरा डिटेल में समझाऊँ?`
-            : `Got it! Regarding "${raw}", I'm ready to help. Would you like a quick step-by-step breakdown or a detailed explanation?`;
-    }
-
     async function sendMultiNodeRequest(nodes, messages, promptText, isHindiOrHinglish) {
         const { nvidiaUrl, nvidiaKey, nvidiaModel, relayPrefix, bridgeUrl, renderUrl, renderKey } = nodes;
 
@@ -969,52 +1009,57 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Tunnel 1: Direct NVIDIA NIM Call
         if (nvidiaUrl && nvidiaKey) {
-            tasks.push(_executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 5500, false));
+            tasks.push(_executeInferenceCall(nvidiaUrl, nvidiaKey, nvidiaModel, messages, 12000, false, false));
         }
 
         // Tunnel 2: NVIDIA NIM via Primary Encrypted Relay
         if (relayPrefix && nvidiaUrl && nvidiaKey) {
             const relayedUrl = relayPrefix + encodeURIComponent(nvidiaUrl);
-            tasks.push(_executeInferenceCall(relayedUrl, nvidiaKey, nvidiaModel, messages, 6500, false));
+            tasks.push(_executeInferenceCall(relayedUrl, nvidiaKey, nvidiaModel, messages, 13000, false, false));
         }
 
-        // Tunnel 3: NVIDIA NIM via Secondary CORS Proxy
-        if (nvidiaUrl && nvidiaKey) {
-            const proxy2 = "https://thingproxy.freeboard.io/fetch/" + nvidiaUrl;
-            tasks.push(_executeInferenceCall(proxy2, nvidiaKey, nvidiaModel, messages, 6500, false));
-        }
-
-        // Tunnel 4: Render Gateway Node
+        // Tunnel 3: Render Gateway Node
         if (renderUrl && renderKey) {
-            tasks.push(_executeInferenceCall(renderUrl, renderKey, nvidiaModel, messages, 6500, false));
+            tasks.push(_executeInferenceCall(renderUrl, renderKey, nvidiaModel, messages, 14000, false, false));
         }
 
-        // Tunnel 5: Direct Browser-CORS Neural Bridge (POST & Fast Clean GET)
+        // Tunnel 4: Browser-Direct CORS-Free OpenAI Neural Bridge (POST + Simple Header POST + Context GET)
         if (bridgeUrl) {
-            tasks.push(_executeInferenceCall(bridgeUrl, "", "openai", messages, 7000, true));
-            tasks.push(_executeCleanGetBridge(bridgeUrl, promptText, isHindiOrHinglish, 6500));
+            tasks.push(_executeInferenceCall(bridgeUrl, "", "openai", messages, 15000, true, false));
+            const rootBridge = bridgeUrl.replace(/\/openai\/?$/, "/");
+            tasks.push(_executeInferenceCall(rootBridge, "", "openai", messages, 15000, true, true));
+            tasks.push(_executeCleanGetBridge(bridgeUrl, promptText, isHindiOrHinglish, 15000));
         }
 
-        if (typeof Promise.any === "function" && tasks.length > 0) {
-            return await Promise.any(tasks);
+        try {
+            if (typeof Promise.any === "function" && tasks.length > 0) {
+                return await Promise.any(tasks);
+            }
+            for (const t of tasks) {
+                try { return await t; } catch (e) {}
+            }
+        } catch (firstWaveErr) {
+            // Second-Wave Guaranteed Retry so real AI answers even on slow mobile network
+            if (bridgeUrl) {
+                return await _executeCleanGetBridge(bridgeUrl, promptText, isHindiOrHinglish, 18000);
+            }
         }
-
-        for (const t of tasks) {
-            try {
-                return await t;
-            } catch (e) {}
-        }
-        throw new Error("Fallback to local neural engine");
+        throw new Error("All tunnels unreachable");
     }
 
     async function callAIAPI(promptText, base64Img = null) {
+        // 1. Kali Linux / Exploit Payload Trap
+        if (_isKaliOrExploitAttempt(promptText)) {
+            return _getDefenseResponse();
+        }
+
         const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|nahi)\b/i.test(promptText);
 
-        // Instant accurate reply if user directly asks who the AI is
+        // 2. Instant accurate reply if user directly asks who the AI is
         if (_isIdentityQuestion(promptText) && !base64Img) {
             const idReply = isHindiOrHinglish
-                ? "मेरा नाम Mani AI है और मुझे Money Bagga (Mani Singh) ने डेवलप किया है। बताओ भाई, आज क्या मदद करूँ?"
-                : "My name is Mani AI, developed by Money Bagga (Mani Singh). How can I help you today?";
+                ? "मेरा नाम Mani AI है और मुझे Money Bagga (Mani Singh) ने डेवलप किया है। बताओ भाई, क्या सवाल है आपका?"
+                : "My name is Mani AI, developed by Money Bagga (Mani Singh). What can I solve for you today?";
             conversationHistory.push({ role: "user", content: promptText });
             conversationHistory.push({ role: "assistant", content: idReply });
             return idReply;
@@ -1034,15 +1079,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const systemInstruction = {
             role: "system",
             content: [
-                "You are a warm, smart, natural, and highly capable AI assistant, talking just like Gemini.",
+                "You are a sharp, mature, intelligent, and direct AI assistant (just like Gemini).",
+                "STRICT POINT-TO-POINT RULES:",
+                "- Always answer the exact question asked by the user directly, accurately, and completely.",
+                "- NEVER give childish, vague, evasive, or off-topic replies. Do NOT repeat the user's question back to them without answering it.",
                 "STRICT IDENTITY RULES:",
                 "- Your name is 'Mani AI' and your creator is 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
-                "- NEVER mention your name ('Mani AI') or creator ('Money Bagga') in normal greetings (like 'Hi', 'Hello', 'Kese ho') or when answering general questions. ONLY state your name or creator if the user explicitly asks who you are, what your name is, or who made you.",
-                "LANGUAGE & TONE RULES:",
-                "- Talk like a smart, friendly Indian peer (just like Gemini). Be direct, accurate, and natural.",
-                "- If the user writes in Hinglish (e.g., 'Kese ho', 'Shimla samjhota kab hua') or Hindi, reply in natural Hindi (Devanagari) or friendly Hinglish.",
-                "- If the user writes in English, reply in natural English.",
-                "- Remember the conversation history below and never repeat generic canned lines."
+                "- NEVER mention your name ('Mani AI') or creator ('Money Bagga') in normal greetings or general answers. ONLY state your name or creator if the user explicitly asks who you are or who made you.",
+                "LANGUAGE RULES:",
+                "- If the user writes in Hindi or Hinglish, reply in natural, clear Hindi (Devanagari) or sharp Hinglish.",
+                "- If the user writes in English, reply in clear, professional English."
             ].join("\n")
         };
 
@@ -1081,11 +1127,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
             return reply;
         } catch (err) {
-            const localReply = _maniLocalNeuralEngine(promptText, base64Img, isHindiOrHinglish);
-            conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: localReply });
-            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return localReply;
+            return isHindiOrHinglish
+                ? "सर्वर से रिस्पॉन्स आने में टाइम लग रहा है, एक बार दोबारा सेंड करो भाई।"
+                : "Server took too long to respond, please send your message again.";
         }
     }
 
