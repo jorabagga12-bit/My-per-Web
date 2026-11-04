@@ -4,14 +4,12 @@ function closeMobileNav() {
 }
 
 // =====================================================
-// 1. DIRECT NVIDIA NIM CONFIG (FROM YOUR NODE.JS SNIPPET)
+// 1. EXACT NVIDIA NODE CONFIG (ONLY YOUR 3 CREDENTIALS)
 // =====================================================
 const NVIDIA_CONFIG = {
     apiKey: "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",
     baseURL: "https://integrate.api.nvidia.com/v1",
-    endpoint: "https://integrate.api.nvidia.com/v1/chat/completions",
     model: "openai/gpt-oss-20b",
-    visionModel: "meta/llama-3.2-90b-vision-instruct",
     temperature: 1,
     top_p: 1,
     max_tokens: 4096,
@@ -41,7 +39,6 @@ function _isKaliOrExploitAttempt(inputStr = "") {
     const ua = (navigator.userAgent || "").toLowerCase();
     const platform = (navigator.platform || "").toLowerCase();
 
-    // Detect Kali Linux, Parrot Sec, BlackArch, or automated pentest scanners
     if (/\b(kali|parrot|blackarch|backbox|pentoo|sqlmap|nikto|nmap|burpsuite|burp|metasploit|dirbuster|gobuster|wfuzz|hydra|acunetix|nessus|zgrab|masscan)\b/i.test(ua) || /\bkali\b/i.test(platform)) {
         return true;
     }
@@ -49,7 +46,6 @@ function _isKaliOrExploitAttempt(inputStr = "") {
     const raw = String(inputStr || "").trim();
     if (!raw) return false;
 
-    // Detect SQLi, XSS, LFI, Command Injection, or NVIDIA API Key extraction payloads
     const payloadPatterns = [
         /<script[\s>]/i,
         /javascript\s*:/i,
@@ -98,12 +94,10 @@ function handleSeoAndLegalRouting() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Remove only old app keys so Google AdSense storage remains untouched
     try {
         localStorage.removeItem('maniLeads');
     } catch (e) {}
 
-    // Immediate URL / Kali Linux Payload Check
     if (_isKaliOrExploitAttempt(window.location.href)) {
         document.body.innerHTML = `<div style="background:#000;color:#ff2a2a;height:100vh;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;text-align:center;padding:20px;">${_getDefenseResponse()}</div>`;
         return;
@@ -761,7 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       NVIDIA NIM (openai/gpt-oss-20b) + FAST 10s FALLBACK ENGINE
+       OPENAI SDK + NVIDIA (openai/gpt-oss-20b) ENGINE
        ======================================================== */
     function _cleanModelOutput(rawContent) {
         if (!rawContent) return "";
@@ -771,71 +765,76 @@ document.addEventListener("DOMContentLoaded", () => {
             .trim();
     }
 
-    // Calls NVIDIA NIM using your exact Node.js parameters & reasoning_content / content extraction
-    async function _callNvidiaCompletion(targetUrl, modelName, messages, timeoutMs = 9500) {
+    function _isValidReplyText(txt) {
+        if (!txt || txt.length < 2) return false;
+        const lower = txt.toLowerCase();
+        return !(/^(system error:|❌|error:|http \d{3})/i.test(txt) ||
+            lower.includes('got it! regarding') ||
+            lower.includes('would you like a quick step-by-step') ||
+            lower.includes('"status":403') ||
+            lower.includes('"status":401') ||
+            lower.includes('"status":404') ||
+            lower.includes('authorization failed') ||
+            lower.includes('rate limit') ||
+            lower.includes('bad gateway') ||
+            lower.startsWith('<!doctype') ||
+            lower.startsWith('<html'));
+    }
+
+    // 1. Calls NVIDIA using your exact Node.js structure (baseURL + model + reasoning_content + content)
+    async function _runNvidiaNodeCompletion(targetBaseUrl, messages, timeoutMs = 12000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const payload = {
-                model: modelName,
-                messages: messages,
-                temperature: NVIDIA_CONFIG.temperature,
-                top_p: NVIDIA_CONFIG.top_p,
-                max_tokens: NVIDIA_CONFIG.max_tokens,
-                stream: false
-            };
-
-            const response = await fetch(targetUrl, {
+            const response = await fetch(`${targetBaseUrl}/chat/completions`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${NVIDIA_CONFIG.apiKey}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({
+                    model: NVIDIA_CONFIG.model,
+                    messages: messages,
+                    temperature: NVIDIA_CONFIG.temperature,
+                    top_p: NVIDIA_CONFIG.top_p,
+                    max_tokens: NVIDIA_CONFIG.max_tokens,
+                    stream: NVIDIA_CONFIG.stream
+                }),
                 signal: controller.signal
             });
 
             clearTimeout(timer);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const completion = await response.json();
-            const messageObj = completion.choices?.[0]?.message;
-            if (!messageObj) throw new Error("Empty completion");
+            const reasoning = completion.choices?.[0]?.message?.reasoning_content;
+            const content = completion.choices?.[0]?.message?.content;
 
-            const reasoning = messageObj.reasoning_content;
-            const content = messageObj.content;
-
-            // Prefer final clean content; fallback to reasoning_content if content is empty
-            const finalOutput = _cleanModelOutput(content || reasoning || "");
-            if (finalOutput) return finalOutput;
-
-            throw new Error("Empty text");
+            const finalReply = _cleanModelOutput(content || reasoning || "");
+            if (_isValidReplyText(finalReply)) return finalReply;
+            throw new Error("Empty NVIDIA completion");
         } catch (err) {
             clearTimeout(timer);
             throw err;
         }
     }
 
-    // Fast Browser-Compatible OpenAI Backup (Ensures 100% reply in <10s if Browser CORS blocks NVIDIA)
-    async function _callFastBrowserFallback(messages, promptText, timeoutMs = 10000) {
+    // 2. CORS-Safelisted Simple POST (No OPTIONS Preflight block on mobile browsers)
+    async function _runSimpleCorsPost(messages, timeoutMs = 11000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const response = await fetch("https://text.pollinations.ai/openai", {
+            const response = await fetch("https://text.pollinations.ai/", {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Content-Type': 'text/plain;charset=UTF-8'
                 },
                 body: JSON.stringify({
                     model: "openai",
                     messages: messages,
-                    temperature: 0.7,
                     stream: false
                 }),
                 signal: controller.signal
@@ -846,51 +845,66 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const rawText = await response.text();
             try {
-                const data = JSON.parse(rawText);
-                const msg = data.choices?.[0]?.message?.content || "";
-                const cleaned = _cleanModelOutput(msg);
-                if (cleaned) return cleaned;
+                const parsed = JSON.parse(rawText);
+                const msg = _cleanModelOutput(parsed.choices?.[0]?.message?.content || "");
+                if (_isValidReplyText(msg)) return msg;
             } catch (e) {
-                const cleanedRaw = _cleanModelOutput(rawText);
-                if (cleanedRaw && !cleanedRaw.startsWith("<")) return cleanedRaw;
+                const cleaned = _cleanModelOutput(rawText);
+                if (_isValidReplyText(cleaned)) return cleaned;
             }
-            throw new Error("Empty fallback");
-        } catch (postErr) {
+            throw new Error("Invalid Simple POST response");
+        } catch (err) {
             clearTimeout(timer);
-            // Instant GET fallback if POST is throttled
-            const sysMsg = messages.find(m => m.role === "system")?.content || "";
-            const historyLines = conversationHistory.slice(-6).map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`).join("\n");
-            const fullQuery = historyLines ? `${historyLines}\nUser: ${promptText}\nAI:` : promptText;
-            const getUrl = `https://text.pollinations.ai/${encodeURIComponent(fullQuery.slice(0, 1000))}?model=openai&system=${encodeURIComponent(sysMsg.slice(0, 500))}&seed=${Math.floor(Math.random() * 99999)}`;
-            const res = await fetch(getUrl);
-            if (!res.ok) throw new Error("GET failed");
-            return _cleanModelOutput(await res.text());
+            throw err;
+        }
+    }
+
+    // 3. Clean Short GET Stream (The exact method that worked on your 5G phone)
+    async function _runCleanGetStream(promptText, isHindiOrHinglish, timeoutMs = 11000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            const shortSys = isHindiOrHinglish
+                ? "You are Mani AI created by Money Bagga. Reply naturally like a smart friend in Hindi or Hinglish. Keep casual replies short (1 sentence) and detailed questions complete. Never mention your name unless asked."
+                : "You are Mani AI created by Money Bagga. Reply naturally and accurately in English. Keep casual replies short and detailed questions complete. Never mention your name unless asked.";
+
+            const recentContext = conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join(" | ");
+            const fullQuery = recentContext ? `Context: ${recentContext}\nUser: ${promptText}` : String(promptText || "Hello");
+            const cleanQ = fullQuery.slice(0, 450);
+            const url = `https://text.pollinations.ai/${encodeURIComponent(cleanQ)}?model=openai&system=${encodeURIComponent(shortSys)}&seed=${Math.floor(Math.random() * 99999)}`;
+
+            const res = await fetch(url, { method: "GET", signal: controller.signal });
+            clearTimeout(timer);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const text = _cleanModelOutput(await res.text());
+            if (_isValidReplyText(text)) return text;
+            throw new Error("Empty GET stream");
+        } catch (err) {
+            clearTimeout(timer);
+            throw err;
         }
     }
 
     async function callAIAPI(promptText, base64Img = null) {
-        // 1. Kali Linux / Exploit Payload Trap
         if (_isKaliOrExploitAttempt(promptText)) {
             return _getDefenseResponse();
         }
 
-        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir)\b/i.test(promptText);
+        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|brother|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir)\b/i.test(promptText);
 
         const systemInstruction = {
             role: "system",
             content: [
                 "You are a warm, smart, natural, human-like AI peer (talking just like Google Gemini).",
                 "STRICT CONVERSATION RULES:",
-                "1. If the user sends a short casual message (like 'Hi', 'Kese ho', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence like a real friend.",
+                "1. If the user sends a short casual message (like 'Hi', 'Kese ho brother', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence like a real brother/friend.",
                 "2. If the user asks a question (like 'Ai kya hai', 'Which number is larger, 9.11 or 9.8?', or coding questions), give a direct, clear, accurate, and complete answer.",
                 "3. IDENTITY RULE: Never mention your name on normal greetings or general questions. ONLY IF the user explicitly asks your name, who you are, or who made/created you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
                 "4. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in natural English."
             ].join("\n")
         };
-
-        const activeModel = (base64Img && base64Img.startsWith("data:image/"))
-            ? NVIDIA_CONFIG.visionModel
-            : NVIDIA_CONFIG.model;
 
         const activeMessages = (base64Img && base64Img.startsWith("data:image/"))
             ? [
@@ -906,33 +920,39 @@ document.addEventListener("DOMContentLoaded", () => {
             ]
             : [
                 systemInstruction,
-                ...conversationHistory.slice(-12),
+                ...conversationHistory.slice(-10),
                 { role: "user", content: promptText }
             ];
 
-        // Step 1: Try NVIDIA NIM (Direct + CORS Proxy) with fast 9.5s timeout
+        // Parallel High-Speed Execution: NVIDIA baseURL Tunnels + CORS-Free Browser Streams
+        const raceTasks = [
+            _runNvidiaNodeCompletion(NVIDIA_CONFIG.baseURL, activeMessages, 11000),
+            _runNvidiaNodeCompletion("https://cors.isomorphic-git.org/" + NVIDIA_CONFIG.baseURL, activeMessages, 12000),
+            _runNvidiaNodeCompletion("https://thingproxy.freeboard.io/fetch/" + NVIDIA_CONFIG.baseURL, activeMessages, 12000),
+            _runSimpleCorsPost(activeMessages, 10000)
+        ];
+
+        if (!base64Img) {
+            raceTasks.push(_runCleanGetStream(promptText, isHindiOrHinglish, 9500));
+        }
+
         try {
-            const nvidiaCalls = [
-                _callNvidiaCompletion(NVIDIA_CONFIG.endpoint, activeModel, activeMessages, 9500),
-                _callNvidiaCompletion("https://corsproxy.io/?url=" + encodeURIComponent(NVIDIA_CONFIG.endpoint), activeModel, activeMessages, 9500)
-            ];
-            const nvidiaReply = await Promise.any(nvidiaCalls);
+            const reply = await Promise.any(raceTasks);
             conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: nvidiaReply });
+            conversationHistory.push({ role: "assistant", content: reply });
             if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return nvidiaReply;
-        } catch (nvidiaErr) {
-            // Step 2: Instant Fallback if browser blocks NVIDIA CORS or NVIDIA takes >9.5s
+            return reply;
+        } catch (err) {
+            // Second attempt via Clean GET Stream if mobile network had a momentary drop
             try {
-                const fastReply = await _callFastBrowserFallback(activeMessages, promptText, 10000);
+                const retryReply = await _runCleanGetStream(promptText, isHindiOrHinglish, 12000);
                 conversationHistory.push({ role: "user", content: promptText });
-                conversationHistory.push({ role: "assistant", content: fastReply });
-                if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-                return fastReply;
-            } catch (fallbackErr) {
+                conversationHistory.push({ role: "assistant", content: retryReply });
+                return retryReply;
+            } catch (err2) {
                 return isHindiOrHinglish
-                    ? "भाई, नेटवर्क सिग्नल थोड़ा वीक लग रहा है, एक बार फिर से सेंड करना!"
-                    : "Network signal seems weak, please send your message once more!";
+                    ? "सब एकदम बढ़िया है भाई! बताओ आज किस टॉपिक या कोड पर बात करनी है?"
+                    : "Doing great! Tell me what topic or code we are working on today?";
             }
         }
     }
