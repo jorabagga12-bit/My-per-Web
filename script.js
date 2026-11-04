@@ -758,7 +758,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       NVIDIA NIM + BROWSER-NATIVE OPENAI INFERENCE ENGINE
+       DEEP-THINKING AI INFERENCE ENGINE (75s THINKING WINDOW)
        ======================================================== */
     function _cleanModelOutput(rawContent) {
         if (!rawContent) return "";
@@ -786,8 +786,8 @@ document.addEventListener("DOMContentLoaded", () => {
             lower.startsWith('<html'));
     }
 
-    // 1. Exact NVIDIA Node.js SDK structure call
-    async function _callNvidiaEndpoint(targetUrl, messages, timeoutMs = 18000) {
+    // 1. Primary Deep-Reasoning Call (75 Seconds Window so complex thoughts never cut off)
+    async function _callNvidiaEndpoint(targetUrl, messages, timeoutMs = 75000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -802,8 +802,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({
                     model: NVIDIA_CONFIG.model,
                     messages: messages,
-                    temperature: NVIDIA_CONFIG.temperature,
-                    top_p: NVIDIA_CONFIG.top_p,
+                    temperature: 0.65,
+                    top_p: 0.95,
                     max_tokens: NVIDIA_CONFIG.max_tokens,
                     stream: NVIDIA_CONFIG.stream
                 }),
@@ -819,15 +819,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const finalOutput = _cleanModelOutput(content || reasoning || "");
             if (_isValidReplyText(finalOutput)) return finalOutput;
-            throw new Error("Empty NVIDIA completion");
+            throw new Error("Empty completion");
         } catch (err) {
             clearTimeout(timer);
             throw err;
         }
     }
 
-    // 2. Exact Working Browser-CORS OpenAI Payload (NO extra temperature/max_tokens that cause HTTP 400)
-    async function _callBrowserOpenAIPost(targetUrl, messages, useSimpleHeader = false, timeoutMs = 20000) {
+    // 2. Secondary Browser-CORS OpenAI Call
+    async function _callBrowserOpenAIPost(targetUrl, messages, useSimpleHeader = false, timeoutMs = 45000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -842,6 +842,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({
                     model: "openai",
                     messages: messages,
+                    seed: Math.floor(Math.random() * 999999),
                     stream: false
                 }),
                 signal: controller.signal
@@ -866,18 +867,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 3. Clean GET Fallback (No special characters or newlines in path)
-    async function _callBrowserCleanGet(promptText, isHindiOrHinglish, timeoutMs = 18000) {
+    // 3. Clean GET Fallback
+    async function _callBrowserCleanGet(promptText, isHindiOrHinglish, timeoutMs = 35000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
             const sysRule = isHindiOrHinglish
-                ? "Reply naturally like a smart friend in Hindi or Hinglish. Only say your name is Mani AI created by Money Bagga if asked."
-                : "Reply naturally and accurately in English. Only say your name is Mani AI created by Money Bagga if asked.";
+                ? "Reply naturally, sharply, and accurately in Hindi or Hinglish. Only say your name is Mani AI created by Money Bagga if asked."
+                : "Reply naturally, sharply, and accurately in English. Only say your name is Mani AI created by Money Bagga if asked.";
 
-            const cleanPrompt = String(promptText || "Hello").replace(/\s+/g, " ").trim().slice(0, 350);
-            const url = `https://text.pollinations.ai/${encodeURIComponent(cleanPrompt)}?model=openai&system=${encodeURIComponent(sysRule)}`;
+            const cleanPrompt = String(promptText || "Hello").replace(/\s+/g, " ").trim().slice(0, 400);
+            const url = `https://text.pollinations.ai/${encodeURIComponent(cleanPrompt)}?model=openai&system=${encodeURIComponent(sysRule)}&seed=${Math.floor(Math.random() * 999999)}`;
 
             const res = await fetch(url, { method: "GET", signal: controller.signal });
             clearTimeout(timer);
@@ -897,17 +898,17 @@ document.addEventListener("DOMContentLoaded", () => {
             return _getDefenseResponse();
         }
 
-        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|brother|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir)\b/i.test(promptText);
+        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|kha|kaha|hua|kon|kaun|bhai|bahi|brother|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir)\b/i.test(promptText);
 
         const systemInstruction = {
             role: "system",
             content: [
-                "You are a warm, smart, natural, human-like AI peer (talking just like Google Gemini).",
-                "STRICT CONVERSATION RULES:",
-                "1. If the user sends a short casual message (like 'Hi', 'Bahi kese ho', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence like a real brother/friend.",
-                "2. If the user asks any factual, general, or technical question (like 'Modi kon hai', 'Ai kya hai', 'Shimla samjhota kab hua', 'Which number is larger, 9.11 or 9.8?', or coding questions), give a direct, clear, accurate, and complete answer.",
+                "You are a sharp, intelligent, natural, human-like AI peer (talking just like Google Gemini).",
+                "STRICT CONVERSATION & ACCURACY RULES:",
+                "1. SHORT MESSAGES: If the user sends a short casual greeting or remark (like 'Hi', 'Bahi kese ho', 'Fir to badiya', 'Ha', 'Ok'), reply fast in 1 short, natural, friendly sentence.",
+                "2. QUESTIONS & FACTS: If the user asks any factual, political, historical, or technical question (e.g., 'Mukesh Agnihotri cm kha ke hai' -> clarify sharply that Mukesh Agnihotri is the Deputy Chief Minister of Himachal Pradesh while Sukhvinder Singh Sukhu is the CM; or questions about Modi, Rahul Gandhi, coding, etc.), think carefully and give a 100% accurate, sharp, well-written answer.",
                 "3. IDENTITY RULE: Never mention your name on normal greetings or general questions. ONLY IF the user explicitly asks your name, who you are, or who made/created you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
-                "4. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in natural English."
+                "4. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural, clean Hindi (Devanagari) or friendly Hinglish without spelling mistakes. If they write in English, reply in natural English."
             ].join("\n")
         };
 
@@ -925,49 +926,52 @@ document.addEventListener("DOMContentLoaded", () => {
             ]
             : [
                 systemInstruction,
-                ...conversationHistory.slice(-10),
+                ...conversationHistory.slice(-8),
                 { role: "user", content: promptText }
             ];
 
         const nvidiaTarget = `${NVIDIA_CONFIG.baseURL}/chat/completions`;
 
-        // Stage 1: Race NVIDIA (different host) + Single Primary OpenAI POST (Exact payload that worked in 60144.jpg)
+        // Stage 1: Primary Deep-Reasoning Call (Full 75s patience so long thinking never aborts)
         try {
             const reply = await Promise.any([
-                _callBrowserOpenAIPost("https://text.pollinations.ai/openai", activeMessages, false, 20000),
-                _callNvidiaEndpoint(`https://cors.eu.org/${nvidiaTarget}`, activeMessages, 18000),
-                _callNvidiaEndpoint(nvidiaTarget, activeMessages, 15000)
+                _callNvidiaEndpoint(`https://cors.eu.org/${nvidiaTarget}`, activeMessages, 75000),
+                _callNvidiaEndpoint(nvidiaTarget, activeMessages, 75000),
+                _callBrowserOpenAIPost("https://text.pollinations.ai/openai", activeMessages, false, 45000)
             ]);
             conversationHistory.push({ role: "user", content: promptText });
             conversationHistory.push({ role: "assistant", content: reply });
-            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+            if (conversationHistory.length > 14) conversationHistory = conversationHistory.slice(-14);
             return reply;
         } catch (stage1Err) {}
 
-        // Stage 2: Sequential Simple-Header POST (No CORS preflight)
+        // Stage 2: Second Deep-Reasoning Retry on NVIDIA + Simple-Header OpenAI POST
         try {
-            const reply2 = await _callBrowserOpenAIPost("https://text.pollinations.ai/", activeMessages, true, 20000);
+            const reply2 = await Promise.any([
+                _callNvidiaEndpoint(`https://cors.eu.org/${nvidiaTarget}`, [systemInstruction, { role: "user", content: promptText }], 75000),
+                _callBrowserOpenAIPost("https://text.pollinations.ai/", activeMessages, true, 45000)
+            ]);
             conversationHistory.push({ role: "user", content: promptText });
             conversationHistory.push({ role: "assistant", content: reply2 });
-            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+            if (conversationHistory.length > 14) conversationHistory = conversationHistory.slice(-14);
             return reply2;
         } catch (stage2Err) {}
 
-        // Stage 3: Sequential Clean GET Stream
+        // Stage 3: Clean GET Stream Fallback
         try {
-            const reply3 = await _callBrowserCleanGet(promptText, isHindiOrHinglish, 18000);
+            const reply3 = await _callBrowserCleanGet(promptText, isHindiOrHinglish, 40000);
             conversationHistory.push({ role: "user", content: promptText });
             conversationHistory.push({ role: "assistant", content: reply3 });
-            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+            if (conversationHistory.length > 14) conversationHistory = conversationHistory.slice(-14);
             return reply3;
         } catch (stage3Err) {
             return isHindiOrHinglish
-                ? "एकदम बढ़िया हूँ भाई! बताओ आज किस सवाल या प्रोजेक्ट पर काम करना है?"
-                : "Doing great! Let me know what question or project we are working on today.";
+                ? "भाई, यह सवाल काफी गहरा था और नेटवर्क बीच में थोड़ा स्लो हो गया। एक बार दोबारा सेंड बटन दबाओ, अभी पूरा जवाब आता है!"
+                : "That took a bit longer to process over the network. Please tap send once more!";
         }
     }
 
-    // Gemini-Style Live "Analyzing -> Reading -> Reasoning" Bubble Updater
+    // Gemini-Style Live "Analyzing -> Reading -> Thinking & Reasoning" UI (ZERO NVIDIA TEXT)
     function startGeminiAnalyzingUI(bubbleEl, userQuery) {
         if (!bubbleEl) return null;
         const textNode = bubbleEl.querySelector('.ai-text-content');
@@ -976,9 +980,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const shortPreview = String(userQuery || "").slice(0, 38) + (String(userQuery || "").length > 38 ? "..." : "");
         const steps = [
             { title: "✨ Analyzing...", sub: `Reading message: "${shortPreview}"` },
-            { title: "🧠 Reasoning...", sub: "Running NVIDIA gpt-oss-20b reasoning chain..." },
-            { title: "⚡ Processing...", sub: "Synthesizing accurate answer..." },
-            { title: "✍️ Finalizing response...", sub: "Formatting reply..." }
+            { title: "🧠 Thinking & Reasoning...", sub: "Analyzing context & verifying facts..." },
+            { title: "⚡ Deep Processing...", sub: "Connecting points for a sharp, accurate answer..." },
+            { title: "✍️ Writing response...", sub: "Structuring final answer..." }
         ];
 
         let stepIdx = 0;
@@ -1002,7 +1006,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (stepIdx < steps.length) {
                 renderStep(stepIdx);
             }
-        }, 2200);
+        }, 2800);
 
         return intervalId;
     }
