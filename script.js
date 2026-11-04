@@ -7,15 +7,15 @@ function closeMobileNav() {
 }
 
 // =====================================================
-// 1. EXACT NVIDIA NODE CONFIG (ONLY YOUR CREDENTIALS)
+// 1. EXACT NVIDIA NODE CONFIG (SHARP REASONING TUNED)
 // =====================================================
 const NVIDIA_CONFIG = {
     apiKey: "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",
     baseURL: "https://integrate.api.nvidia.com/v1",
     model: "openai/gpt-oss-20b",
-    temperature: 1,
-    top_p: 1,
-    max_tokens: 4096,
+    temperature: 0.35,
+    top_p: 0.85,
+    max_tokens: 2048,
     stream: false
 };
 
@@ -66,7 +66,7 @@ function _isKaliOrExploitAttempt(inputStr = "") {
 
 // In-RAM conversational context memory (Zero browser storage)
 let conversationHistory = [];
-let _lastApiCallTimestamp = 0;
+let _workingTunnelIndex = 0;
 
 // Handles Sitemap SEO URLs (?page=...) and Legal Page Modals (#privacy-policy, etc.)
 function handleSeoAndLegalRouting() {
@@ -759,7 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       AUTO-QUEUEING DEEP-THINKING AI INFERENCE ENGINE
+       ASCII-SAFE PURE NVIDIA (openai/gpt-oss-20b) ENGINE
        ======================================================== */
     function _cleanModelOutput(rawContent) {
         if (!rawContent) return "";
@@ -769,8 +769,15 @@ document.addEventListener("DOMContentLoaded", () => {
             .trim();
     }
 
+    // Converts Hindi/Unicode characters to \uXXXX ASCII so CORS proxies NEVER miscalculate Content-Length!
+    function _toAsciiSafeJson(obj) {
+        return JSON.stringify(obj).replace(/[\u007F-\uFFFF]/g, ch =>
+            "\\u" + ("0000" + ch.charCodeAt(0).toString(16)).slice(-4)
+        );
+    }
+
     function _isValidReplyText(txt) {
-        if (!txt || txt.length < 2) return false;
+        if (!txt || txt.length < 1) return false;
         const lower = txt.toLowerCase();
         return !(/^(system error:|❌|error:|http \d{3})/i.test(txt) ||
             lower.includes('got it! regarding') ||
@@ -782,19 +789,26 @@ document.addEventListener("DOMContentLoaded", () => {
             lower.includes('"status":429') ||
             lower.includes('too many requests') ||
             lower.includes('rate limit') ||
-            lower.includes('unsupported value') ||
-            lower.includes('unsupported parameter') ||
             lower.includes('post requests are only available') ||
             lower.startsWith('<!doctype') ||
             lower.startsWith('<html'));
     }
 
-    // 1. Exact NVIDIA Node.js SDK structure call (Matches your Node.js parameters 100%)
-    async function _callNvidiaEndpoint(targetUrl, messages, timeoutMs = 45000) {
+    // Calls NVIDIA NIM with ASCII-escaped JSON body & proper content/reasoning extraction
+    async function _callNvidiaEndpoint(targetUrl, messages, timeoutMs = 40000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
+            const asciiBody = _toAsciiSafeJson({
+                model: NVIDIA_CONFIG.model,
+                messages: messages,
+                temperature: NVIDIA_CONFIG.temperature,
+                top_p: NVIDIA_CONFIG.top_p,
+                max_tokens: NVIDIA_CONFIG.max_tokens,
+                stream: NVIDIA_CONFIG.stream
+            });
+
             const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: {
@@ -802,14 +816,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    model: NVIDIA_CONFIG.model,
-                    messages: messages,
-                    temperature: NVIDIA_CONFIG.temperature,
-                    top_p: NVIDIA_CONFIG.top_p,
-                    max_tokens: NVIDIA_CONFIG.max_tokens,
-                    stream: NVIDIA_CONFIG.stream
-                }),
+                body: asciiBody,
+                cache: 'no-store',
                 signal: controller.signal
             });
 
@@ -817,79 +825,14 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const completion = await response.json();
-            const reasoning = completion.choices?.[0]?.message?.reasoning_content;
-            const content = completion.choices?.[0]?.message?.content;
+            const messageObj = completion.choices?.[0]?.message || {};
 
-            const finalOutput = _cleanModelOutput(content || reasoning || "");
+            const cleanContent = _cleanModelOutput(messageObj.content || "");
+            const cleanReasoning = _cleanModelOutput(messageObj.reasoning_content || "");
+            const finalOutput = cleanContent || cleanReasoning;
+
             if (_isValidReplyText(finalOutput)) return finalOutput;
             throw new Error("Empty NVIDIA completion");
-        } catch (err) {
-            clearTimeout(timer);
-            throw err;
-        }
-    }
-
-    // 2. Exact Working Browser-CORS OpenAI Payload (The exact payload that answered Rahul Gandhi & Joni in 60227.jpg / 60233.jpg)
-    async function _callBrowserOpenAIPost(targetUrl, messages, modelName = "openai", useSimpleHeader = false, timeoutMs = 45000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        try {
-            const headers = useSimpleHeader
-                ? { 'Content-Type': 'text/plain;charset=UTF-8' }
-                : { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-
-            const response = await fetch(targetUrl, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                    model: modelName,
-                    messages: messages,
-                    stream: false
-                }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timer);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const rawText = await response.text();
-            try {
-                const data = JSON.parse(rawText);
-                const msg = _cleanModelOutput(data.choices?.[0]?.message?.content || data.choices?.[0]?.text || "");
-                if (_isValidReplyText(msg)) return msg;
-            } catch (e) {
-                const cleanedRaw = _cleanModelOutput(rawText);
-                if (_isValidReplyText(cleanedRaw)) return cleanedRaw;
-            }
-            throw new Error("Invalid OpenAI POST response");
-        } catch (err) {
-            clearTimeout(timer);
-            throw err;
-        }
-    }
-
-    // 3. Clean GET Stream with cache-busting seed
-    async function _callBrowserCleanGet(promptText, isHindiOrHinglish, modelParam = "openai", timeoutMs = 35000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        try {
-            const sysRule = isHindiOrHinglish
-                ? "Reply naturally like a smart friend in Hindi or Hinglish. Only say your name is Mani AI created by Money Bagga if asked."
-                : "Reply naturally and accurately in English. Only say your name is Mani AI created by Money Bagga if asked.";
-
-            const cleanPrompt = String(promptText || "Hello").replace(/\s+/g, " ").trim().slice(0, 380);
-            const seed = Math.floor(Math.random() * 999999);
-            const url = `https://text.pollinations.ai/${encodeURIComponent(cleanPrompt)}?model=${encodeURIComponent(modelParam)}&seed=${seed}&system=${encodeURIComponent(sysRule)}`;
-
-            const res = await fetch(url, { method: "GET", cache: "no-store", signal: controller.signal });
-            clearTimeout(timer);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const text = _cleanModelOutput(await res.text());
-            if (_isValidReplyText(text)) return text;
-            throw new Error("Empty GET response");
         } catch (err) {
             clearTimeout(timer);
             throw err;
@@ -901,33 +844,38 @@ document.addEventListener("DOMContentLoaded", () => {
             return _getDefenseResponse();
         }
 
-        // Smart Cooldown Guard: If the user sends two messages rapidly back-to-back (< 3.2s apart),
-        // wait automatically while showing the "Analyzing..." animation so the server never gives HTTP 429!
-        const now = Date.now();
-        const elapsedSinceLast = now - _lastApiCallTimestamp;
-        if (_lastApiCallTimestamp > 0 && elapsedSinceLast < 3200) {
-            await new Promise(r => setTimeout(r, 3200 - elapsedSinceLast));
-        }
-        _lastApiCallTimestamp = Date.now();
-
         const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|kha|kaha|hua|kon|kaun|bhai|bahi|brother|mani|bagga|tum|aap|ap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir)\b/i.test(promptText);
 
         const systemInstruction = {
             role: "system",
             content: [
-                "You are a warm, smart, natural, human-like AI peer (talking just like Google Gemini).",
-                "STRICT CONVERSATION RULES:",
-                "1. If the user sends a short casual greeting or remark (like 'Hi', 'Kese ho ap', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence like a real friend.",
-                "2. If the user asks any factual, political, historical, or technical question, give a direct, clear, accurate, and complete answer.",
-                "3. IDENTITY RULE: Never mention your name on normal greetings or general questions. ONLY IF the user explicitly asks your name, who you are, or who made/created you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
-                "4. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in natural English."
+                "You are a sharp, accurate, natural AI assistant (talking just like Google Gemini).",
+                "RULES:",
+                "1. Keep your internal thinking brief (1-2 sentences max) so you respond fast.",
+                "2. For short casual greetings (like 'Hi', 'Kese ho ap', 'Fir to badiya', 'Ha'), reply naturally in 1 friendly sentence.",
+                "3. For factual, political, or tricky questions (for example, if someone asks 'Mukesh Agnihotri cm kha ke hai', think carefully and clarify that Mukesh Agnihotri is the Deputy Chief Minister of Himachal Pradesh while Sukhvinder Singh Sukhu is the Chief Minister), verify facts carefully and give a 100% accurate, clear answer.",
+                "4. Never mention your name on normal greetings or general questions. ONLY if the user explicitly asks your name, who you are, or who made you, state that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
+                "5. Reply in clean, natural Hindi (Devanagari) or friendly Hinglish if the user writes in Hindi/Hinglish, or English if they write in English."
             ].join("\n")
         };
+
+        // Keep history clean and alternating so the model never gets confused
+        const recentHistory = [];
+        let prevRole = "system";
+        for (const msg of conversationHistory.slice(-6)) {
+            if (msg && (msg.role === "user" || msg.role === "assistant") && msg.content && msg.role !== prevRole) {
+                recentHistory.push({ role: msg.role, content: String(msg.content).slice(0, 900) });
+                prevRole = msg.role;
+            }
+        }
+        if (recentHistory.length > 0 && recentHistory[recentHistory.length - 1].role === "user") {
+            recentHistory.pop();
+        }
 
         const activeMessages = (base64Img && base64Img.startsWith("data:image/"))
             ? [
                 systemInstruction,
-                ...conversationHistory.slice(-6),
+                ...recentHistory,
                 {
                     role: "user",
                     content: [
@@ -938,64 +886,44 @@ document.addEventListener("DOMContentLoaded", () => {
             ]
             : [
                 systemInstruction,
-                ...conversationHistory.slice(-8),
+                ...recentHistory,
                 { role: "user", content: promptText }
             ];
 
         const nvidiaTarget = `${NVIDIA_CONFIG.baseURL}/chat/completions`;
+        const tunnels = [
+            `https://api.cors.lol/?url=${encodeURIComponent(nvidiaTarget)}`,
+            `https://cors.eu.org/${nvidiaTarget}`,
+            `https://proxy.corsfix.com/?${nvidiaTarget}`,
+            nvidiaTarget
+        ];
 
-        // Wave 1: Primary Call (Exact payload that worked for Rahul Gandhi & Joni)
+        // Try tunnels sequentially (starting with the proven working tunnel) so we NEVER spam duplicate requests on your NVIDIA key!
+        for (let attempt = 0; attempt < tunnels.length; attempt++) {
+            const idx = (_workingTunnelIndex + attempt) % tunnels.length;
+            const tunnelUrl = tunnels[idx];
+            try {
+                const reply = await _callNvidiaEndpoint(tunnelUrl, activeMessages, 40000);
+                _workingTunnelIndex = idx;
+                conversationHistory.push({ role: "user", content: promptText });
+                conversationHistory.push({ role: "assistant", content: reply });
+                if (conversationHistory.length > 12) conversationHistory = conversationHistory.slice(-12);
+                return reply;
+            } catch (err) {
+                // Brief 800ms breather before switching to next tunnel
+                await new Promise(r => setTimeout(r, 800));
+            }
+        }
+
+        // Final clean retry with fresh single-message context (in case long history caused a proxy glitch)
         try {
-            const reply1 = await Promise.any([
-                _callBrowserOpenAIPost("https://text.pollinations.ai/openai", activeMessages, "openai", false, 45000),
-                _callNvidiaEndpoint(`https://api.cors.lol/?url=${encodeURIComponent(nvidiaTarget)}`, activeMessages, 40000),
-                _callNvidiaEndpoint(`https://cors.eu.org/${nvidiaTarget}`, activeMessages, 40000),
-                _callNvidiaEndpoint(nvidiaTarget, activeMessages, 35000)
-            ]);
-            _lastApiCallTimestamp = Date.now();
+            const freshMessages = [systemInstruction, { role: "user", content: promptText }];
+            const finalReply = await _callNvidiaEndpoint(tunnels[0], freshMessages, 45000);
             conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply1 });
-            if (conversationHistory.length > 14) conversationHistory = conversationHistory.slice(-14);
-            return reply1;
-        } catch (wave1Err) {}
-
-        // Pause 3 seconds before Wave 2 so rate-limit window resets (User sees "Thinking & Reasoning...")
-        await new Promise(r => setTimeout(r, 3000));
-
-        // Wave 2: Simple-Header POST + Fast Model
-        try {
-            const reply2 = await _callBrowserOpenAIPost("https://text.pollinations.ai/", activeMessages, "openai", true, 45000);
-            _lastApiCallTimestamp = Date.now();
-            conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply2 });
-            if (conversationHistory.length > 14) conversationHistory = conversationHistory.slice(-14);
-            return reply2;
-        } catch (wave2Err) {}
-
-        // Pause 3 seconds before Wave 3 so GET stream never hits 429
-        await new Promise(r => setTimeout(r, 3000));
-
-        // Wave 3: Clean GET Stream
-        try {
-            const reply3 = await _callBrowserCleanGet(promptText, isHindiOrHinglish, "openai", 35000);
-            _lastApiCallTimestamp = Date.now();
-            conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply3 });
-            if (conversationHistory.length > 14) conversationHistory = conversationHistory.slice(-14);
-            return reply3;
-        } catch (wave3Err) {}
-
-        // Pause 3 seconds before Wave 4 (Final guaranteed retry)
-        await new Promise(r => setTimeout(r, 3000));
-
-        try {
-            const reply4 = await _callBrowserOpenAIPost("https://text.pollinations.ai/openai", [systemInstruction, { role: "user", content: promptText }], "openai", false, 45000);
-            _lastApiCallTimestamp = Date.now();
-            conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply4 });
-            if (conversationHistory.length > 14) conversationHistory = conversationHistory.slice(-14);
-            return reply4;
-        } catch (wave4Err) {
+            conversationHistory.push({ role: "assistant", content: finalReply });
+            if (conversationHistory.length > 12) conversationHistory = conversationHistory.slice(-12);
+            return finalReply;
+        } catch (finalErr) {
             return isHindiOrHinglish
                 ? "नेटवर्क कनेक्शन में थोड़ा डिले आ रहा है भाई, एक बार फिर से सेंड करना।"
                 : "Network connection delayed, please send your message again.";
@@ -1037,7 +965,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (stepIdx < steps.length) {
                 renderStep(stepIdx);
             }
-        }, 2600);
+        }, 2500);
 
         return intervalId;
     }
