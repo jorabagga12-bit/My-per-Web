@@ -4,7 +4,7 @@ function closeMobileNav() {
 }
 
 // =====================================================
-// 1. EXACT NVIDIA NODE CONFIG (ONLY YOUR 3 CREDENTIALS)
+// 1. EXACT NVIDIA NODE CONFIG (ONLY YOUR CREDENTIALS)
 // =====================================================
 const NVIDIA_CONFIG = {
     apiKey: "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",
@@ -774,20 +774,22 @@ document.addEventListener("DOMContentLoaded", () => {
             lower.includes('"status":403') ||
             lower.includes('"status":401') ||
             lower.includes('"status":404') ||
+            lower.includes('"status":429') ||
             lower.includes('authorization failed') ||
             lower.includes('rate limit') ||
+            lower.includes('too many requests') ||
             lower.includes('bad gateway') ||
             lower.startsWith('<!doctype') ||
             lower.startsWith('<html'));
     }
 
     // 1. Calls NVIDIA using your exact Node.js structure (baseURL + model + reasoning_content + content)
-    async function _runNvidiaNodeCompletion(targetBaseUrl, messages, timeoutMs = 12000) {
+    async function _runNvidiaNodeCompletion(targetUrl, messages, timeoutMs = 26000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const response = await fetch(`${targetBaseUrl}/chat/completions`, {
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${NVIDIA_CONFIG.apiKey}`,
@@ -799,7 +801,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     messages: messages,
                     temperature: NVIDIA_CONFIG.temperature,
                     top_p: NVIDIA_CONFIG.top_p,
-                    max_tokens: NVIDIA_CONFIG.max_tokens,
+                    max_tokens: 1536,
                     stream: NVIDIA_CONFIG.stream
                 }),
                 signal: controller.signal
@@ -821,20 +823,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 2. CORS-Safelisted Simple POST (No OPTIONS Preflight block on mobile browsers)
-    async function _runSimpleCorsPost(messages, timeoutMs = 11000) {
+    // 2. Single Clean OpenAI JSON POST (Never fired concurrently so it never gets HTTP 429)
+    async function _runOpenAIBridgePost(messages, timeoutMs = 22000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const response = await fetch("https://text.pollinations.ai/", {
+            const response = await fetch("https://text.pollinations.ai/openai", {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'text/plain;charset=UTF-8'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     model: "openai",
                     messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 1200,
                     stream: false
                 }),
                 signal: controller.signal
@@ -852,26 +857,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 const cleaned = _cleanModelOutput(rawText);
                 if (_isValidReplyText(cleaned)) return cleaned;
             }
-            throw new Error("Invalid Simple POST response");
+            throw new Error("Invalid POST response");
         } catch (err) {
             clearTimeout(timer);
             throw err;
         }
     }
 
-    // 3. Clean Short GET Stream (The exact method that worked on your 5G phone)
-    async function _runCleanGetStream(promptText, isHindiOrHinglish, timeoutMs = 11000) {
+    // 3. Single Clean GET Stream (Used only if POST fails)
+    async function _runCleanGetStream(promptText, isHindiOrHinglish, timeoutMs = 20000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
             const shortSys = isHindiOrHinglish
-                ? "You are Mani AI created by Money Bagga. Reply naturally like a smart friend in Hindi or Hinglish. Keep casual replies short (1 sentence) and detailed questions complete. Never mention your name unless asked."
-                : "You are Mani AI created by Money Bagga. Reply naturally and accurately in English. Keep casual replies short and detailed questions complete. Never mention your name unless asked.";
+                ? "You are Mani AI created by Money Bagga. Give a direct, accurate answer in Hindi or Hinglish. Never mention your name unless asked."
+                : "You are Mani AI created by Money Bagga. Give a direct, accurate answer in English. Never mention your name unless asked.";
 
             const recentContext = conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join(" | ");
-            const fullQuery = recentContext ? `Context: ${recentContext}\nUser: ${promptText}` : String(promptText || "Hello");
-            const cleanQ = fullQuery.slice(0, 450);
+            const fullQuery = recentContext ? `Context: ${recentContext}\nQuestion: ${promptText}` : String(promptText || "Hello");
+            const cleanQ = fullQuery.slice(0, 500);
             const url = `https://text.pollinations.ai/${encodeURIComponent(cleanQ)}?model=openai&system=${encodeURIComponent(shortSys)}&seed=${Math.floor(Math.random() * 99999)}`;
 
             const res = await fetch(url, { method: "GET", signal: controller.signal });
@@ -899,10 +904,11 @@ document.addEventListener("DOMContentLoaded", () => {
             content: [
                 "You are a warm, smart, natural, human-like AI peer (talking just like Google Gemini).",
                 "STRICT CONVERSATION RULES:",
-                "1. If the user sends a short casual message (like 'Hi', 'Kese ho brother', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence like a real brother/friend.",
-                "2. If the user asks a question (like 'Ai kya hai', 'Which number is larger, 9.11 or 9.8?', or coding questions), give a direct, clear, accurate, and complete answer.",
-                "3. IDENTITY RULE: Never mention your name on normal greetings or general questions. ONLY IF the user explicitly asks your name, who you are, or who made/created you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
-                "4. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in natural English."
+                "1. Keep your internal reasoning brief so you answer fast.",
+                "2. If the user sends a short casual message (like 'Hi', 'Kese ho brother', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence.",
+                "3. If the user asks any factual, general, or technical question (like 'Modi kon hai', 'Ai kya hai', 'Which number is larger, 9.11 or 9.8?', or coding questions), give a direct, clear, accurate, and complete answer.",
+                "4. IDENTITY RULE: Never mention your name on normal greetings or general questions. ONLY IF the user explicitly asks your name, who you are, or who made/created you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
+                "5. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in natural English."
             ].join("\n")
         };
 
@@ -924,40 +930,85 @@ document.addEventListener("DOMContentLoaded", () => {
                 { role: "user", content: promptText }
             ];
 
-        // Parallel High-Speed Execution: NVIDIA baseURL Tunnels + CORS-Free Browser Streams
-        const raceTasks = [
-            _runNvidiaNodeCompletion(NVIDIA_CONFIG.baseURL, activeMessages, 11000),
-            _runNvidiaNodeCompletion("https://cors.isomorphic-git.org/" + NVIDIA_CONFIG.baseURL, activeMessages, 12000),
-            _runNvidiaNodeCompletion("https://thingproxy.freeboard.io/fetch/" + NVIDIA_CONFIG.baseURL, activeMessages, 12000),
-            _runSimpleCorsPost(activeMessages, 10000)
-        ];
+        const nvidiaFullEndpoint = `${NVIDIA_CONFIG.baseURL}/chat/completions`;
 
-        if (!base64Img) {
-            raceTasks.push(_runCleanGetStream(promptText, isHindiOrHinglish, 9500));
-        }
-
+        // Step 1: Try Direct NVIDIA + CORS-Proxied NVIDIA (openai/gpt-oss-20b)
         try {
-            const reply = await Promise.any(raceTasks);
+            const nvidiaReply = await Promise.any([
+                _runNvidiaNodeCompletion(nvidiaFullEndpoint, activeMessages, 25000),
+                _runNvidiaNodeCompletion("https://corsproxy.io/?url=" + encodeURIComponent(nvidiaFullEndpoint), activeMessages, 26000)
+            ]);
             conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply });
+            conversationHistory.push({ role: "assistant", content: nvidiaReply });
             if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return reply;
-        } catch (err) {
-            // Second attempt via Clean GET Stream if mobile network had a momentary drop
-            try {
-                const retryReply = await _runCleanGetStream(promptText, isHindiOrHinglish, 12000);
-                conversationHistory.push({ role: "user", content: promptText });
-                conversationHistory.push({ role: "assistant", content: retryReply });
-                return retryReply;
-            } catch (err2) {
-                return isHindiOrHinglish
-                    ? "सब एकदम बढ़िया है भाई! बताओ आज किस टॉपिक या कोड पर बात करनी है?"
-                    : "Doing great! Tell me what topic or code we are working on today?";
-            }
+            return nvidiaReply;
+        } catch (nvidiaErr) {}
+
+        // Step 2: Single Clean OpenAI JSON POST (No parallel spam, so zero 429 rate-limit)
+        try {
+            const postReply = await _runOpenAIBridgePost(activeMessages, 22000);
+            conversationHistory.push({ role: "user", content: promptText });
+            conversationHistory.push({ role: "assistant", content: postReply });
+            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+            return postReply;
+        } catch (postErr) {}
+
+        // Step 3: Single Clean GET Stream (After 500ms pause so server never blocks)
+        try {
+            await new Promise(r => setTimeout(r, 500));
+            const getReply = await _runCleanGetStream(promptText, isHindiOrHinglish, 20000);
+            conversationHistory.push({ role: "user", content: promptText });
+            conversationHistory.push({ role: "assistant", content: getReply });
+            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+            return getReply;
+        } catch (getErr) {
+            return isHindiOrHinglish
+                ? "सर्वर अभी व्यस्त है भाई, बस 2 सेकंड रुक कर दोबारा सेंड करो।"
+                : "Server is currently busy, please wait 2 seconds and send again.";
         }
     }
 
-    function appendMessageBubble(sender, content, imageSrc = null, hideImage = false) {
+    // Gemini-Style Live "Analyzing -> Reading -> Reasoning" Bubble Updater
+    function startGeminiAnalyzingUI(bubbleEl, userQuery) {
+        if (!bubbleEl) return null;
+        const textNode = bubbleEl.querySelector('.ai-text-content');
+        if (!textNode) return null;
+
+        const shortPreview = String(userQuery || "").slice(0, 38) + (String(userQuery || "").length > 38 ? "..." : "");
+        const steps = [
+            { title: "✨ Analyzing...", sub: `Reading message: "${shortPreview}"` },
+            { title: "🧠 Reasoning...", sub: "Understanding your question & context..." },
+            { title: "⚡ Processing...", sub: "Connecting to Neural Engine & fetching facts..." },
+            { title: "✍️ Generating answer...", sub: "Structuring a clear & accurate response..." }
+        ];
+
+        let stepIdx = 0;
+        function renderStep(idx) {
+            const s = steps[Math.min(idx, steps.length - 1)];
+            textNode.innerHTML = `
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                    <div style="font-weight:600;color:#93c5fd;font-size:14.5px;display:flex;align-items:center;gap:6px;">
+                        <span>${s.title}</span>
+                    </div>
+                    <div style="font-size:12.5px;color:rgba(241,245,249,0.72);line-height:1.4;">
+                        ${s.sub}
+                    </div>
+                </div>
+            `;
+        }
+
+        renderStep(0);
+        const intervalId = setInterval(() => {
+            stepIdx++;
+            if (stepIdx < steps.length) {
+                renderStep(stepIdx);
+            }
+        }, 2300);
+
+        return intervalId;
+    }
+
+    function appendMessageBubble(sender, content, imageSrc = null, hideImage = false, isLoadingBubble = false) {
         if (!chatHistory) return null;
         if (chatBoxWrapper) { chatBoxWrapper.classList.add('has-messages'); }
         if (liveToolsPanel) { liveToolsPanel.style.display = 'flex'; }
@@ -998,7 +1049,7 @@ document.addEventListener("DOMContentLoaded", () => {
             textNode.innerText = content;
             msgWrapper.appendChild(textNode);
 
-            if (content !== 'Thinking...') {
+            if (!isLoadingBubble && content !== 'Thinking...') {
                 const actionBar = document.createElement('div');
                 actionBar.className = 'chat-action-bar';
 
@@ -1069,19 +1120,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         isProcessing = true;
         lastUserPrompt = finalPrompt;
-        appendMessageBubble('user', userText, imagePayload, hideImageInChat);
+        appendMessageBubble('user', userText, imagePayload, hideImageInChat, false);
         if (aiInput) aiInput.value = '';
         attachedBase64Image = null;
         if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
 
-        const loadingBubble = appendMessageBubble('bot', 'Thinking...');
+        const loadingBubble = appendMessageBubble('bot', 'Analyzing...', null, false, true);
+        const analyzingTimer = startGeminiAnalyzingUI(loadingBubble, userText);
 
         const aiReply = await callAIAPI(finalPrompt, imagePayload);
+        if (analyzingTimer) clearInterval(analyzingTimer);
         isProcessing = false;
         if (loadingBubble && loadingBubble.parentNode) {
             chatHistory.removeChild(loadingBubble);
         }
-        appendMessageBubble('bot', aiReply);
+        appendMessageBubble('bot', aiReply, null, false, false);
 
         if (autoSpeak || isLiveModeActive || isCameraVisible) {
             speakText(aiReply, () => {
