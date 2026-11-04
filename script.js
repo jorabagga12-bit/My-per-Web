@@ -1,3 +1,6 @@
+// =====================================================
+// MANI AI MAIN SCRIPT (manigamer.cv)
+// =====================================================
 function closeMobileNav() {
     const nav = document.getElementById('mobileNavOverlay');
     if (nav) nav.classList.remove('open');
@@ -63,6 +66,7 @@ function _isKaliOrExploitAttempt(inputStr = "") {
 
 // In-RAM conversational context memory (Zero browser storage)
 let conversationHistory = [];
+let _preferredNvidiaTunnel = null;
 
 // Handles Sitemap SEO URLs (?page=...) and Legal Page Modals (#privacy-policy, etc.)
 function handleSeoAndLegalRouting() {
@@ -755,7 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       OPENAI SDK + NVIDIA (openai/gpt-oss-20b) ENGINE
+       DIRECT NVIDIA (openai/gpt-oss-20b) MULTI-TUNNEL ENGINE
        ======================================================== */
     function _cleanModelOutput(rawContent) {
         if (!rawContent) return "";
@@ -766,7 +770,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function _isValidReplyText(txt) {
-        if (!txt || txt.length < 2) return false;
+        if (!txt || txt.length < 1) return false;
         const lower = txt.toLowerCase();
         return !(/^(system error:|❌|error:|http \d{3})/i.test(txt) ||
             lower.includes('got it! regarding') ||
@@ -774,22 +778,18 @@ document.addEventListener("DOMContentLoaded", () => {
             lower.includes('"status":403') ||
             lower.includes('"status":401') ||
             lower.includes('"status":404') ||
-            lower.includes('"status":429') ||
-            lower.includes('authorization failed') ||
-            lower.includes('rate limit') ||
-            lower.includes('too many requests') ||
-            lower.includes('bad gateway') ||
+            lower.includes('post requests are only available') ||
             lower.startsWith('<!doctype') ||
             lower.startsWith('<html'));
     }
 
-    // 1. Calls NVIDIA using your exact Node.js structure (baseURL + model + reasoning_content + content)
-    async function _runNvidiaNodeCompletion(targetUrl, messages, timeoutMs = 26000) {
+    // Exact NVIDIA completion call matching your Node.js OpenAI SDK snippet
+    async function _callNvidiaViaTunnel(tunnelUrl, nvidiaMessages, timeoutMs = 28000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const response = await fetch(targetUrl, {
+            const response = await fetch(tunnelUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${NVIDIA_CONFIG.apiKey}`,
@@ -798,98 +798,70 @@ document.addEventListener("DOMContentLoaded", () => {
                 },
                 body: JSON.stringify({
                     model: NVIDIA_CONFIG.model,
-                    messages: messages,
+                    messages: nvidiaMessages,
                     temperature: NVIDIA_CONFIG.temperature,
                     top_p: NVIDIA_CONFIG.top_p,
-                    max_tokens: 1536,
+                    max_tokens: NVIDIA_CONFIG.max_tokens,
                     stream: NVIDIA_CONFIG.stream
                 }),
                 signal: controller.signal
             });
 
             clearTimeout(timer);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
 
             const completion = await response.json();
             const reasoning = completion.choices?.[0]?.message?.reasoning_content;
             const content = completion.choices?.[0]?.message?.content;
 
-            const finalReply = _cleanModelOutput(content || reasoning || "");
-            if (_isValidReplyText(finalReply)) return finalReply;
-            throw new Error("Empty NVIDIA completion");
-        } catch (err) {
-            clearTimeout(timer);
-            throw err;
-        }
-    }
-
-    // 2. Single Clean OpenAI JSON POST (Never fired concurrently so it never gets HTTP 429)
-    async function _runOpenAIBridgePost(messages, timeoutMs = 22000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        try {
-            const response = await fetch("https://text.pollinations.ai/openai", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: "openai",
-                    messages: messages,
-                    temperature: 0.7,
-                    max_tokens: 1200,
-                    stream: false
-                }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timer);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const rawText = await response.text();
-            try {
-                const parsed = JSON.parse(rawText);
-                const msg = _cleanModelOutput(parsed.choices?.[0]?.message?.content || "");
-                if (_isValidReplyText(msg)) return msg;
-            } catch (e) {
-                const cleaned = _cleanModelOutput(rawText);
-                if (_isValidReplyText(cleaned)) return cleaned;
+            const finalOutput = _cleanModelOutput(content || reasoning || "");
+            if (_isValidReplyText(finalOutput)) {
+                _preferredNvidiaTunnel = tunnelUrl;
+                return finalOutput;
             }
-            throw new Error("Invalid POST response");
+            throw new Error("Empty NVIDIA message");
         } catch (err) {
             clearTimeout(timer);
             throw err;
         }
     }
 
-    // 3. Single Clean GET Stream (Used only if POST fails)
-    async function _runCleanGetStream(promptText, isHindiOrHinglish, timeoutMs = 20000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
+    function _buildAlternatingNvidiaMessages(promptText, base64Img = null) {
+        const personaGuide = "[Instruction: Reply naturally, directly, and smartly like Google Gemini in the user's language (Hindi, Hinglish, or English). Keep casual greetings short (1 line) and questions detailed. Never mention your name on normal greetings; ONLY if the user explicitly asks your name, who you are, or who made you, state that your name is Mani AI created by Money Bagga (Mani Singh) from Haroli, District Una, Himachal Pradesh.]\n\n";
 
-        try {
-            const shortSys = isHindiOrHinglish
-                ? "You are Mani AI created by Money Bagga. Give a direct, accurate answer in Hindi or Hinglish. Never mention your name unless asked."
-                : "You are Mani AI created by Money Bagga. Give a direct, accurate answer in English. Never mention your name unless asked.";
-
-            const recentContext = conversationHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join(" | ");
-            const fullQuery = recentContext ? `Context: ${recentContext}\nQuestion: ${promptText}` : String(promptText || "Hello");
-            const cleanQ = fullQuery.slice(0, 500);
-            const url = `https://text.pollinations.ai/${encodeURIComponent(cleanQ)}?model=openai&system=${encodeURIComponent(shortSys)}&seed=${Math.floor(Math.random() * 99999)}`;
-
-            const res = await fetch(url, { method: "GET", signal: controller.signal });
-            clearTimeout(timer);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const text = _cleanModelOutput(await res.text());
-            if (_isValidReplyText(text)) return text;
-            throw new Error("Empty GET stream");
-        } catch (err) {
-            clearTimeout(timer);
-            throw err;
+        const cleanHistory = [];
+        let lastRole = null;
+        for (const item of conversationHistory.slice(-8)) {
+            if (item && (item.role === "user" || item.role === "assistant") && item.content && item.role !== lastRole) {
+                if (cleanHistory.length === 0 && item.role !== "user") continue;
+                cleanHistory.push({ role: item.role, content: String(item.content) });
+                lastRole = item.role;
+            }
         }
+        if (cleanHistory.length > 0 && cleanHistory[cleanHistory.length - 1].role === "user") {
+            cleanHistory.pop();
+        }
+
+        const userPromptWithGuide = `${personaGuide}User: ${promptText}`;
+
+        if (base64Img && base64Img.startsWith("data:image/")) {
+            cleanHistory.push({
+                role: "user",
+                content: [
+                    { type: "text", text: userPromptWithGuide },
+                    { type: "image_url", image_url: { url: base64Img } }
+                ]
+            });
+        } else {
+            cleanHistory.push({
+                role: "user",
+                content: userPromptWithGuide
+            });
+        }
+
+        return cleanHistory;
     }
 
     async function callAIAPI(promptText, base64Img = null) {
@@ -899,72 +871,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|brother|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir)\b/i.test(promptText);
 
-        const systemInstruction = {
-            role: "system",
-            content: [
-                "You are a warm, smart, natural, human-like AI peer (talking just like Google Gemini).",
-                "STRICT CONVERSATION RULES:",
-                "1. Keep your internal reasoning brief so you answer fast.",
-                "2. If the user sends a short casual message (like 'Hi', 'Kese ho brother', 'Fir to badiya', 'Ha', 'Ok'), reply in 1 short, natural, friendly sentence.",
-                "3. If the user asks any factual, general, or technical question (like 'Modi kon hai', 'Ai kya hai', 'Which number is larger, 9.11 or 9.8?', or coding questions), give a direct, clear, accurate, and complete answer.",
-                "4. IDENTITY RULE: Never mention your name on normal greetings or general questions. ONLY IF the user explicitly asks your name, who you are, or who made/created you, tell them clearly that your name is 'Mani AI' and you were created by 'Money Bagga (Mani Singh)' from Haroli, District Una, Himachal Pradesh.",
-                "5. LANGUAGE RULE: If the user writes in Hindi or Hinglish, reply in natural Hindi (Devanagari) or friendly Hinglish. If they write in English, reply in natural English."
-            ].join("\n")
-        };
+        const nvidiaTarget = `${NVIDIA_CONFIG.baseURL}/chat/completions`;
+        const nvidiaMessages = _buildAlternatingNvidiaMessages(promptText, base64Img);
 
-        const activeMessages = (base64Img && base64Img.startsWith("data:image/"))
-            ? [
-                systemInstruction,
-                ...conversationHistory.slice(-6),
-                {
-                    role: "user",
-                    content: [
-                        { type: "text", text: promptText },
-                        { type: "image_url", image_url: { url: base64Img } }
-                    ]
-                }
-            ]
-            : [
-                systemInstruction,
-                ...conversationHistory.slice(-10),
-                { role: "user", content: promptText }
-            ];
+        // If we already found the fastest working tunnel in this session, try it first
+        if (_preferredNvidiaTunnel) {
+            try {
+                const fastReply = await _callNvidiaViaTunnel(_preferredNvidiaTunnel, nvidiaMessages, 25000);
+                conversationHistory.push({ role: "user", content: promptText });
+                conversationHistory.push({ role: "assistant", content: fastReply });
+                if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+                return fastReply;
+            } catch (prefErr) {
+                _preferredNvidiaTunnel = null;
+            }
+        }
 
-        const nvidiaFullEndpoint = `${NVIDIA_CONFIG.baseURL}/chat/completions`;
+        // All POST-Capable NVIDIA Tunnels (Bypasses Browser CORS for Authorization + JSON POST)
+        const nvidiaTunnels = [
+            `https://cors.eu.org/${nvidiaTarget}`,
+            `https://api.cors.lol/?url=${encodeURIComponent(nvidiaTarget)}`,
+            `https://proxy.corsfix.com/?${nvidiaTarget}`,
+            nvidiaTarget
+        ];
 
-        // Step 1: Try Direct NVIDIA + CORS-Proxied NVIDIA (openai/gpt-oss-20b)
         try {
-            const nvidiaReply = await Promise.any([
-                _runNvidiaNodeCompletion(nvidiaFullEndpoint, activeMessages, 25000),
-                _runNvidiaNodeCompletion("https://corsproxy.io/?url=" + encodeURIComponent(nvidiaFullEndpoint), activeMessages, 26000)
-            ]);
+            const reply = await Promise.any(
+                nvidiaTunnels.map(tUrl => _callNvidiaViaTunnel(tUrl, nvidiaMessages, 28000))
+            );
             conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: nvidiaReply });
+            conversationHistory.push({ role: "assistant", content: reply });
             if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return nvidiaReply;
-        } catch (nvidiaErr) {}
-
-        // Step 2: Single Clean OpenAI JSON POST (No parallel spam, so zero 429 rate-limit)
-        try {
-            const postReply = await _runOpenAIBridgePost(activeMessages, 22000);
-            conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: postReply });
-            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return postReply;
-        } catch (postErr) {}
-
-        // Step 3: Single Clean GET Stream (After 500ms pause so server never blocks)
-        try {
-            await new Promise(r => setTimeout(r, 500));
-            const getReply = await _runCleanGetStream(promptText, isHindiOrHinglish, 20000);
-            conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: getReply });
-            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return getReply;
-        } catch (getErr) {
-            return isHindiOrHinglish
-                ? "सर्वर अभी व्यस्त है भाई, बस 2 सेकंड रुक कर दोबारा सेंड करो।"
-                : "Server is currently busy, please wait 2 seconds and send again.";
+            return reply;
+        } catch (firstWaveErr) {
+            // Automatic second wave retry on primary POST tunnel if mobile network had a spike
+            try {
+                const retryReply = await _callNvidiaViaTunnel(`https://cors.eu.org/${nvidiaTarget}`, nvidiaMessages, 28000);
+                conversationHistory.push({ role: "user", content: promptText });
+                conversationHistory.push({ role: "assistant", content: retryReply });
+                return retryReply;
+            } catch (secondErr) {
+                return isHindiOrHinglish
+                    ? "भाई, नेटवर्क में हल्का ड्रॉप आया है, एक बार फिर से सेंड बटन दबाओ।"
+                    : "Network packet dropped, please tap send once more.";
+            }
         }
     }
 
@@ -977,9 +927,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const shortPreview = String(userQuery || "").slice(0, 38) + (String(userQuery || "").length > 38 ? "..." : "");
         const steps = [
             { title: "✨ Analyzing...", sub: `Reading message: "${shortPreview}"` },
-            { title: "🧠 Reasoning...", sub: "Understanding your question & context..." },
-            { title: "⚡ Processing...", sub: "Connecting to Neural Engine & fetching facts..." },
-            { title: "✍️ Generating answer...", sub: "Structuring a clear & accurate response..." }
+            { title: "🧠 Reasoning...", sub: "Running NVIDIA gpt-oss-20b reasoning chain..." },
+            { title: "⚡ Processing...", sub: "Synthesizing accurate answer..." },
+            { title: "✍️ Finalizing response...", sub: "Formatting reply..." }
         ];
 
         let stepIdx = 0;
@@ -1003,7 +953,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (stepIdx < steps.length) {
                 renderStep(stepIdx);
             }
-        }, 2300);
+        }, 2200);
 
         return intervalId;
     }
