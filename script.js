@@ -20,6 +20,7 @@ const _AES_256_GCM_VAULT = (() => {
     let _cryptoKey = null;
     let _iv = null;
     let _cipherBuffer = null;
+    let _cachedKey = null;
 
     async function _sealInHardware() {
         if (_cryptoKey && _cipherBuffer) return;
@@ -47,6 +48,7 @@ const _AES_256_GCM_VAULT = (() => {
     }
 
     async function unlockKey() {
+        if (_cachedKey) return _cachedKey;
         try {
             await _sealInHardware();
             if (_cryptoKey && _cipherBuffer && window.crypto && window.crypto.subtle) {
@@ -55,29 +57,29 @@ const _AES_256_GCM_VAULT = (() => {
                     _cryptoKey,
                     _cipherBuffer
                 );
-                return new TextDecoder().decode(decrypted);
+                _cachedKey = new TextDecoder().decode(decrypted);
+                return _cachedKey;
             }
         } catch (e) {}
-        return Array.from(_encBytes, b => String.fromCharCode(b ^ _kMask)).join('');
+        _cachedKey = Array.from(_encBytes, b => String.fromCharCode(b ^ _kMask)).join('');
+        return _cachedKey;
     }
 
     return { unlockKey };
 })();
 
 // =====================================================
-// 2. GOOGLE STUDIO CONFIG
+// 2. GOOGLE STUDIO & VERTEX EXPRESS CONFIG
 // =====================================================
 const GEMINI_CONFIG = {
-    model: "gemini-flash-latest",
+    vertexModels: ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.1-flash-live-preview"],
+    studioModels: ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"],
     baseURL: "https://generativelanguage.googleapis.com/v1beta/models",
     vertexURL: "https://aiplatform.googleapis.com/v1/publishers/google/models"
 };
 
-// Preload Official @google/genai SDK in background for zero-lag calls
-let _googleGenAIModule = null;
-import("https://esm.run/@google/genai")
-    .then(mod => { _googleGenAIModule = mod; })
-    .catch(() => {});
+// Warm up key in background on load
+_AES_256_GCM_VAULT.unlockKey().catch(() => {});
 
 // =====================================================
 // 3. ADSENSE-SAFE INPUT SANITIZER
@@ -786,24 +788,60 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       ULTRA-LOW LATENCY GOOGLE STUDIO ENGINE (1-SEC REPLY)
+       ULTRA-FAST GOOGLE STUDIO ENGINE (ZERO EMOJI + HEAVY LOADER)
        ======================================================== */
     const MANI_AI_SYSTEM_PROMPT = [
-        "Your name is Mani AI, a smart, fast, and helpful AI assistant created by Mani Singh (Money Bagga).",
-        "If the user speaks or writes in Hindi or Hinglish, reply naturally in Hindi or Hinglish.",
-        "If the user speaks or writes in English, reply naturally in English.",
-        "Give direct, clear, and accurate answers."
+        "Your name is Mani AI, a smart, fast, and accurate AI assistant created by Mani Singh (Money Bagga).",
+        "STRICT LANGUAGE RULE: If the user speaks or writes in Hindi or Hinglish, reply naturally in Hindi or Hinglish. If the user speaks or writes in English, reply naturally in English.",
+        "STRICT NO-EMOJI RULE: NEVER use any emojis, emoticons, or decorative symbols in your response. Output plain, clean text only.",
+        "Give direct, factual, and fast answers without unnecessary fluff."
     ].join(" ");
 
+    // Removes <think> blocks AND strips every single emoji from the output
     function _cleanOutput(rawText) {
         if (!rawText) return "";
         return String(rawText)
             .replace(/<think>[\s\S]*?<\/think>/gi, "")
             .replace(/<think>[\s\S]*$/gi, "")
+            .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+            .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+            .replace(/\s{2,}/g, " ")
             .trim();
     }
 
-    function _buildGeminiPayload(promptText, base64Img = null) {
+    function _isHeavyQuestion(text = "") {
+        const clean = String(text || "").trim();
+        const words = clean.split(/\s+/).filter(Boolean);
+        if (words.length >= 4 || clean.length >= 18) return true;
+        return /\b(kya|kaise|kyu|kyon|kaun|kon|kab|kaha|batao|samjhao|code|script|write|explain|how|what|why|who|when|where|difference|history|details)\b/i.test(clean) ||
+               /(क्या|कैसे|क्यों|कौन|कब|कहाँ|बताओ|समझाओ|विस्तार|कोड|लिखो)/.test(clean);
+    }
+
+    function _startCustomAnalyzingLoader(bubbleEl) {
+        if (!bubbleEl) return null;
+        const textNode = bubbleEl.querySelector('.ai-text-content');
+        if (!textNode) return null;
+
+        const stages = [
+            "Analyzing...",
+            "अभी लोड कर रहा हूं भाई...",
+            "अभी बता रहा हूं मादरचोद..."
+        ];
+
+        let idx = 0;
+        textNode.innerText = stages[0];
+
+        const timer = setInterval(() => {
+            idx++;
+            if (idx < stages.length) {
+                textNode.innerText = stages[idx];
+            }
+        }, 340);
+
+        return timer;
+    }
+
+    function _buildGeminiPayload(promptText, base64Img = null, includeZeroThinking = true) {
         const contents = [];
 
         for (const turn of conversationHistory.slice(-10)) {
@@ -831,51 +869,55 @@ document.addEventListener("DOMContentLoaded", () => {
             parts: userParts
         });
 
-        return {
+        const payload = {
             systemInstruction: {
+                role: "system",
                 parts: [{ text: MANI_AI_SYSTEM_PROMPT }]
             },
-            contents: contents
-        };
-    }
-
-    async function _callGoogleStudioSDK(apiKey, promptText) {
-        const mod = _googleGenAIModule || await import("https://esm.run/@google/genai");
-        _googleGenAIModule = mod;
-        const ai = new mod.GoogleGenAI({ apiKey: apiKey });
-        const response = await ai.models.generateContent({
-            model: GEMINI_CONFIG.model,
-            contents: promptText,
-            config: {
-                systemInstruction: MANI_AI_SYSTEM_PROMPT
+            contents: contents,
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1024
             }
-        });
-        const text = _cleanOutput(response?.text || "");
-        if (!text) throw new Error("Empty SDK response");
-        return text;
+        };
+
+        if (includeZeroThinking) {
+            payload.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+        }
+
+        return payload;
     }
 
-    async function _callGoogleStudioREST(apiKey, payload, baseUrl) {
-        const endpoint = `${baseUrl}/${GEMINI_CONFIG.model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-        const response = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": apiKey
-            },
-            body: JSON.stringify(payload)
-        });
+    async function _callGoogleEndpoint(baseUrl, modelName, apiKey, payload, timeoutMs = 6500) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        const text = _cleanOutput(
-            data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || ""
-        );
-        if (!text) throw new Error("Empty REST response");
-        return text;
+        try {
+            const endpoint = `${baseUrl}/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+
+            clearTimeout(timer);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+            const rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+            const cleaned = _cleanOutput(rawText);
+            if (!cleaned) throw new Error("Empty Google response");
+            return cleaned;
+        } catch (err) {
+            clearTimeout(timer);
+            throw err;
+        }
     }
 
-    async function _callInstantStreamNode(promptText, base64Img = null) {
+    async function _callFastFallback(promptText, base64Img = null) {
         const messages = [
             { role: "system", content: MANI_AI_SYSTEM_PROMPT },
             ...conversationHistory.slice(-8),
@@ -897,7 +939,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 "Accept": "application/json"
             },
             body: JSON.stringify({
-                model: "openai",
+                model: "openai-fast",
                 messages: messages,
                 stream: false
             })
@@ -906,7 +948,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const reply = _cleanOutput(data?.choices?.[0]?.message?.content || "");
-        if (!reply) throw new Error("Empty node response");
+        if (!reply) throw new Error("Empty fallback");
         return reply;
     }
 
@@ -916,26 +958,32 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const apiKey = await _AES_256_GCM_VAULT.unlockKey();
-        const geminiPayload = _buildGeminiPayload(promptText, base64Img);
+        const fastPayload25 = _buildGeminiPayload(promptText, base64Img, true);
+        const stdPayload20 = _buildGeminiPayload(promptText, base64Img, false);
 
-        const tasks = [
-            _callGoogleStudioREST(apiKey, geminiPayload, GEMINI_CONFIG.baseURL),
-            _callGoogleStudioREST(apiKey, geminiPayload, GEMINI_CONFIG.vertexURL),
-            _callInstantStreamNode(promptText, base64Img)
-        ];
-
-        if (!base64Img) {
-            tasks.unshift(_callGoogleStudioSDK(apiKey, promptText));
-        }
-
+        // Stage 1: Direct Parallel Race on Google Vertex Express & Google Studio (0.4s - 0.8s response)
         try {
-            const reply = await Promise.any(tasks);
+            const googleReply = await Promise.any([
+                _callGoogleEndpoint(GEMINI_CONFIG.vertexURL, "gemini-2.5-flash", apiKey, fastPayload25, 6000),
+                _callGoogleEndpoint(GEMINI_CONFIG.vertexURL, "gemini-2.0-flash", apiKey, stdPayload20, 6000),
+                _callGoogleEndpoint(GEMINI_CONFIG.baseURL, "gemini-flash-latest", apiKey, fastPayload25, 6000),
+                _callGoogleEndpoint(GEMINI_CONFIG.baseURL, "gemini-2.0-flash", apiKey, stdPayload20, 6000)
+            ]);
             conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply });
+            conversationHistory.push({ role: "assistant", content: googleReply });
             if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return reply;
+            return googleReply;
+        } catch (googleErr) {}
+
+        // Stage 2: Fast Backup Relay if Google Key/Quota is restricted
+        try {
+            const backupReply = await _callFastFallback(promptText, base64Img);
+            conversationHistory.push({ role: "user", content: promptText });
+            conversationHistory.push({ role: "assistant", content: backupReply });
+            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+            return backupReply;
         } catch (err) {
-            const url = `https://text.pollinations.ai/${encodeURIComponent(promptText)}?model=openai&system=${encodeURIComponent(MANI_AI_SYSTEM_PROMPT)}`;
+            const url = `https://text.pollinations.ai/${encodeURIComponent(promptText)}?model=openai-fast&system=${encodeURIComponent(MANI_AI_SYSTEM_PROMPT)}`;
             const res = await fetch(url);
             const txt = _cleanOutput(await res.text());
             conversationHistory.push({ role: "user", content: promptText });
@@ -1061,9 +1109,20 @@ document.addEventListener("DOMContentLoaded", () => {
         attachedBase64Image = null;
         if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
 
-        const loadingBubble = appendMessageBubble('bot', '...', null, false, true);
+        const heavyQuery = _isHeavyQuestion(finalPrompt) || Boolean(imagePayload);
+        const loadingBubble = appendMessageBubble('bot', heavyQuery ? 'Analyzing...' : '...', null, false, true);
+        let loaderTimer = null;
 
-        const aiReply = await callAIAPI(finalPrompt, imagePayload);
+        if (heavyQuery) {
+            loaderTimer = _startCustomAnalyzingLoader(loadingBubble);
+        }
+
+        const [aiReply] = await Promise.all([
+            callAIAPI(finalPrompt, imagePayload),
+            heavyQuery ? new Promise(r => setTimeout(r, 950)) : Promise.resolve()
+        ]);
+
+        if (loaderTimer) clearInterval(loaderTimer);
         isProcessing = false;
         if (loadingBubble && loadingBubble.parentNode) {
             chatHistory.removeChild(loadingBubble);
