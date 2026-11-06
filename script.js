@@ -71,7 +71,7 @@ const _AES_256_GCM_VAULT = (() => {
 _AES_256_GCM_VAULT.unlockKey().catch(() => {});
 
 // =====================================================
-// 2. GOOGLE STUDIO CONFIG (SINGLE CLEAN ENDPOINT)
+// 2. GOOGLE STUDIO CONFIG
 // =====================================================
 const GEMINI_CONFIG = {
     model: "gemini-flash-latest",
@@ -785,16 +785,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ========================================================
-       GOOGLE STUDIO ENGINE (ZERO EMOJI + INSTANT RESPONSE)
+       LIVE AI ENGINE (ZERO EMOJI + STYLED ANALYZING BOX)
        ======================================================== */
-    const MANI_AI_SYSTEM_PROMPT = [
-        "You are Mani AI, a fast, smart, and accurate AI assistant created by Mani Singh (Money Bagga).",
-        "STRICT RULES:",
-        "1. If the user writes in Hindi or Hinglish, reply naturally in Hindi or Hinglish. If the user writes in English, reply naturally in English.",
-        "2. NEVER use any emojis, emoticons, or symbols in your response. Output clean plain text only.",
-        "3. Give direct, accurate answers. For greetings like Hello or Hi, reply naturally in 1 short friendly sentence."
-    ].join("\n");
-
     function _cleanOutput(rawText) {
         if (!rawText) return "";
         return String(rawText)
@@ -805,76 +797,96 @@ document.addEventListener("DOMContentLoaded", () => {
             .trim();
     }
 
-    function _startCustomAnalyzingLoader(bubbleEl) {
+    function _isValidReplyText(txt) {
+        if (!txt || txt.length < 1) return false;
+        const lower = txt.toLowerCase();
+        return !(/^(system error:|error:|http \d{3})/i.test(txt) ||
+            lower.includes('"status":400') ||
+            lower.includes('"status":401') ||
+            lower.includes('"status":403') ||
+            lower.includes('"status":404') ||
+            lower.includes('"status":429') ||
+            lower.includes('"error":') ||
+            lower.includes('unsupported value') ||
+            lower.includes('unsupported parameter') ||
+            lower.startsWith('<!doctype') ||
+            lower.startsWith('<html'));
+    }
+
+    // 2-Line Box UI for Analyzing -> डीप है ये सोच रहा हूं मैं -> अभी बताता हूं मादरचोद
+    function startAnalyzingBoxUI(bubbleEl) {
         if (!bubbleEl) return null;
         const textNode = bubbleEl.querySelector('.ai-text-content');
         if (!textNode) return null;
 
-        const stages = [
-            "Analyzing...",
-            "अभी लोड कर रहा हूं भाई...",
-            "अभी बता रहा हूं मादरचोद..."
+        const steps = [
+            {
+                title: "Analyzing... अभी बताता हूं मादरचोद",
+                sub: "डीप है ये, सोच रहा हूं मैं... अभी लोड कर रहा हूं भाई..."
+            },
+            {
+                title: "Analyzing Deep... सोच रहा हूं मैं",
+                sub: "अभी लोड कर रहा हूं भाई... अभी बता रहा हूं मादरचोद..."
+            },
+            {
+                title: "अभी बता रहा हूं मादरचोद...",
+                sub: "Analyzing... सीधा सटीक जवाब निकाल रहा हूं भाई..."
+            }
         ];
 
-        let idx = 0;
-        textNode.innerText = stages[0];
-
-        return setInterval(() => {
-            idx++;
-            if (idx < stages.length) {
-                textNode.innerText = stages[idx];
-            }
-        }, 180);
-    }
-
-    // Universal Google Payload (100% compatible with all Gemini endpoints)
-    function _buildUniversalGooglePayload(promptText, base64Img = null) {
-        const historyLines = conversationHistory
-            .slice(-6)
-            .map(t => `${t.role === "assistant" ? "Mani AI" : "User"}: ${t.content}`)
-            .join("\n");
-
-        const fullPrompt = [
-            MANI_AI_SYSTEM_PROMPT,
-            historyLines ? `\nPrevious conversation:\n${historyLines}` : "",
-            `\nUser: ${promptText}\nMani AI:`
-        ].join("");
-
-        const parts = [{ text: fullPrompt }];
-
-        if (base64Img && base64Img.startsWith("data:image/")) {
-            const mimeMatch = base64Img.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
-            if (mimeMatch) {
-                parts.push({
-                    inlineData: {
-                        mimeType: mimeMatch[1],
-                        data: mimeMatch[2]
-                    }
-                });
-            }
+        let stepIdx = 0;
+        function renderBox(idx) {
+            const s = steps[idx % steps.length];
+            textNode.innerHTML = `
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                    <div style="font-weight:700;color:#93c5fd;font-size:14.5px;letter-spacing:0.2px;">
+                        ${s.title}
+                    </div>
+                    <div style="font-size:13px;color:rgba(241,245,249,0.82);line-height:1.45;">
+                        ${s.sub}
+                    </div>
+                </div>
+            `;
         }
 
-        return {
-            contents: [
-                {
-                    role: "user",
-                    parts: parts
-                }
-            ]
-        };
+        renderBox(0);
+        return setInterval(() => {
+            stepIdx++;
+            renderBox(stepIdx);
+        }, 550);
     }
 
-    async function _callGoogleStudio(apiKey, payload, timeoutMs = 4000) {
+    // 1. Direct Google Studio Call
+    async function _callGoogleStudio(apiKey, messages, base64Img = null, timeoutMs = 14000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
+            const sysText = messages[0]?.content || "";
+            const userPrompt = messages[messages.length - 1]?.content || "";
+            const parts = [{ text: typeof userPrompt === "string" ? userPrompt : JSON.stringify(userPrompt) }];
+
+            if (base64Img && base64Img.startsWith("data:image/")) {
+                const mimeMatch = base64Img.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+                if (mimeMatch) {
+                    parts.push({
+                        inlineData: {
+                            mimeType: mimeMatch[1],
+                            data: mimeMatch[2]
+                        }
+                    });
+                }
+            }
+
+            const payload = {
+                systemInstruction: { parts: [{ text: sysText }] },
+                contents: [{ role: "user", parts: parts }]
+            };
+
             const endpoint = `${GEMINI_CONFIG.baseURL}/${GEMINI_CONFIG.model}:generateContent?key=${encodeURIComponent(apiKey)}`;
             const response = await fetch(endpoint, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
@@ -885,59 +897,27 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
             const rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
             const cleaned = _cleanOutput(rawText);
-            if (!cleaned) throw new Error("Empty Google response");
-            return cleaned;
+            if (_isValidReplyText(cleaned)) return cleaned;
+            throw new Error("Empty Google Studio output");
         } catch (err) {
             clearTimeout(timer);
             throw err;
         }
     }
 
-    async function _callGoogleSDK(apiKey, promptText, timeoutMs = 4500) {
+    // 2. Browser-CORS Compatible POST (Supports both JSON & Plain-Text responses without crashing)
+    async function _callBrowserInferencePost(targetUrl, messages, useSimpleHeader = false, timeoutMs = 18000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const mod = await import("https://esm.sh/@google/genai");
-            const ai = new mod.GoogleGenAI({ apiKey: apiKey });
-            const response = await ai.models.generateContent({
-                model: GEMINI_CONFIG.model,
-                contents: `${MANI_AI_SYSTEM_PROMPT}\n\nUser: ${promptText}`
-            });
-            clearTimeout(timer);
-            const cleaned = _cleanOutput(response?.text || "");
-            if (!cleaned) throw new Error("Empty SDK response");
-            return cleaned;
-        } catch (err) {
-            clearTimeout(timer);
-            throw err;
-        }
-    }
+            const headers = useSimpleHeader
+                ? { "Content-Type": "text/plain;charset=UTF-8" }
+                : { "Content-Type": "application/json", "Accept": "application/json" };
 
-    async function _callDirectStreamPost(promptText, base64Img = null, timeoutMs = 6000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        try {
-            const messages = [
-                { role: "system", content: MANI_AI_SYSTEM_PROMPT },
-                ...conversationHistory.slice(-6),
-                base64Img && base64Img.startsWith("data:image/")
-                    ? {
-                        role: "user",
-                        content: [
-                            { type: "text", text: promptText },
-                            { type: "image_url", image_url: { url: base64Img } }
-                        ]
-                    }
-                    : { role: "user", content: promptText }
-            ];
-
-            const res = await fetch("https://text.pollinations.ai/openai", {
+            const response = await fetch(targetUrl, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: headers,
                 body: JSON.stringify({
                     model: "openai",
                     messages: messages,
@@ -947,32 +927,44 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             clearTimeout(timer);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            const data = await res.json();
-            const reply = _cleanOutput(data?.choices?.[0]?.message?.content || "");
-            if (!reply) throw new Error("Empty POST response");
-            return reply;
+            const rawText = await response.text();
+            try {
+                const data = JSON.parse(rawText);
+                const msg = _cleanOutput(data.choices?.[0]?.message?.content || data.choices?.[0]?.text || "");
+                if (_isValidReplyText(msg)) return msg;
+            } catch (e) {
+                const cleanedRaw = _cleanOutput(rawText);
+                if (_isValidReplyText(cleanedRaw)) return cleanedRaw;
+            }
+            throw new Error("Invalid POST response");
         } catch (err) {
             clearTimeout(timer);
             throw err;
         }
     }
 
-    async function _callDirectStreamGet(promptText, timeoutMs = 6000) {
+    // 3. Clean GET Stream (Single-line system rule, no newline characters in URL)
+    async function _callBrowserCleanGet(promptText, isHindiOrHinglish, timeoutMs = 18000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const cleanQ = String(promptText || "Hello").replace(/\s+/g, " ").trim().slice(0, 400);
-            const url = `https://text.pollinations.ai/${encodeURIComponent(cleanQ)}?model=openai&system=${encodeURIComponent(MANI_AI_SYSTEM_PROMPT)}`;
+            const sysRule = isHindiOrHinglish
+                ? "You are Mani AI created by Mani Singh (Money Bagga). Reply naturally and accurately in Hindi or Hinglish without any emojis."
+                : "You are Mani AI created by Mani Singh (Money Bagga). Reply naturally and accurately in English without any emojis.";
+
+            const cleanPrompt = String(promptText || "Hello").replace(/\s+/g, " ").trim().slice(0, 380);
+            const url = `https://text.pollinations.ai/${encodeURIComponent(cleanPrompt)}?model=openai&system=${encodeURIComponent(sysRule)}`;
+
             const res = await fetch(url, { method: "GET", signal: controller.signal });
             clearTimeout(timer);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-            const txt = _cleanOutput(await res.text());
-            if (!txt) throw new Error("Empty GET response");
-            return txt;
+            const text = _cleanOutput(await res.text());
+            if (_isValidReplyText(text)) return text;
+            throw new Error("Empty GET response");
         } catch (err) {
             clearTimeout(timer);
             throw err;
@@ -984,36 +976,66 @@ document.addEventListener("DOMContentLoaded", () => {
             return "Invalid input format.";
         }
 
+        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|brother|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir|kyu|kyon|kaha)\b/i.test(promptText);
+
+        const systemInstruction = {
+            role: "system",
+            content: [
+                "You are Mani AI, a smart, fast, human-like AI assistant created by Mani Singh (Money Bagga).",
+                "STRICT RULES:",
+                "1. NO EMOJIS: Never use any emojis, emoticons, or decorative symbols anywhere in your answer. Output clean plain text only.",
+                "2. LANGUAGE: If the user writes in Hindi or Hinglish, reply naturally in Hindi (Devanagari) or friendly Hinglish. If the user writes in English, reply in English.",
+                "3. ACCURACY: Answer every question (whether casual chat, general knowledge, coding, or facts) directly, accurately, and completely."
+            ].join("\n")
+        };
+
+        const activeMessages = (base64Img && base64Img.startsWith("data:image/"))
+            ? [
+                systemInstruction,
+                ...conversationHistory.slice(-6),
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: promptText },
+                        { type: "image_url", image_url: { url: base64Img } }
+                    ]
+                }
+            ]
+            : [
+                systemInstruction,
+                ...conversationHistory.slice(-10),
+                { role: "user", content: promptText }
+            ];
+
         const apiKey = await _AES_256_GCM_VAULT.unlockKey();
-        const googlePayload = _buildUniversalGooglePayload(promptText, base64Img);
 
-        // Single race: Google Studio REST + Google SDK + Single Fast Stream (whichever replies first in ~0.5s wins immediately)
-        const raceTasks = [
-            _callGoogleStudio(apiKey, googlePayload, 4000),
-            _callDirectStreamPost(promptText, base64Img, 6000)
-        ];
-
-        if (!base64Img) {
-            raceTasks.push(_callGoogleSDK(apiKey, promptText, 4500));
-        }
-
+        // Stage 1: Parallel Race (Google Studio + Browser OpenAI POST)
         try {
-            const reply = await Promise.any(raceTasks);
+            const reply = await Promise.any([
+                _callGoogleStudio(apiKey, activeMessages, base64Img, 14000),
+                _callBrowserInferencePost("https://text.pollinations.ai/openai", activeMessages, false, 18000)
+            ]);
             conversationHistory.push({ role: "user", content: promptText });
             conversationHistory.push({ role: "assistant", content: reply });
             if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
             return reply;
-        } catch (firstErr) {
-            try {
-                const fallbackReply = await _callDirectStreamGet(promptText, 6000);
-                conversationHistory.push({ role: "user", content: promptText });
-                conversationHistory.push({ role: "assistant", content: fallbackReply });
-                if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-                return fallbackReply;
-            } catch (secondErr) {
-                return "हाय भाई, बोलो क्या मदद करूँ?";
-            }
-        }
+        } catch (stage1Err) {}
+
+        // Stage 2: Simple-Header POST (Bypasses CORS Preflight on Mobile Browsers)
+        try {
+            const reply2 = await _callBrowserInferencePost("https://text.pollinations.ai/", activeMessages, true, 18000);
+            conversationHistory.push({ role: "user", content: promptText });
+            conversationHistory.push({ role: "assistant", content: reply2 });
+            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+            return reply2;
+        } catch (stage2Err) {}
+
+        // Stage 3: Clean GET Stream
+        const reply3 = await _callBrowserCleanGet(promptText, isHindiOrHinglish, 18000);
+        conversationHistory.push({ role: "user", content: promptText });
+        conversationHistory.push({ role: "assistant", content: reply3 });
+        if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+        return reply3;
     }
 
     function appendMessageBubble(sender, content, imageSrc = null, hideImage = false, isLoadingBubble = false) {
@@ -1133,15 +1155,14 @@ document.addEventListener("DOMContentLoaded", () => {
         attachedBase64Image = null;
         if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
 
-        // Always show custom Analyzing -> अभी बता रहा हूं मादरचोद loader (never "...")
         const loadingBubble = appendMessageBubble('bot', 'Analyzing...', null, false, true);
-        const loaderTimer = _startCustomAnalyzingLoader(loadingBubble);
+        const loaderTimer = startAnalyzingBoxUI(loadingBubble);
 
         let aiReply = "";
         try {
             aiReply = await callAIAPI(finalPrompt, imagePayload);
         } catch (err) {
-            aiReply = "हाय भाई, बताओ क्या सवाल है?";
+            aiReply = "नेटवर्क थोड़ा स्लो है भाई, एक बार फिर से सेंड कर।";
         } finally {
             if (loaderTimer) clearInterval(loaderTimer);
             isProcessing = false;
