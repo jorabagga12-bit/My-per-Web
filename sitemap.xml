@@ -1,98 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-                            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 
-  <!-- 1. Main Homepage & Hero Media -->
+  <!-- 1. Main Homepage & Create PDF Tool -->
   <url>
     <loc>https://manigamer.cv/</loc>
-    <lastmod>2026-11-03</lastmod>
+    <lastmod>2026-11-08</lastmod>
     <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-    <image:image>
-      <image:loc>https://manigamer.cv/images/mani-devloper.jpeg</image:loc>
-      <image:title>Money Bagga - Founder and Creator of Mani AI</image:title>
-      <image:caption>Full-Stack Developer and AI Automation Specialist from Haroli, District Una, Himachal Pradesh</image:caption>
-    </image:image>
+    <priority>1.00</priority>
     <image:image>
       <image:loc>https://manigamer.cv/images/aster.jpg</image:loc>
-      <image:title>Mani AI Official Brand Logo</image:title>
+      <image:title>Create PDF — Money Bagga Official Round Logo</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://manigamer.cv/images/mani-devloper.jpeg</image:loc>
+      <image:title>Money Bagga — Creator &amp; Full-Stack Developer</image:title>
     </image:image>
   </url>
 
-  <!-- 2. Mani's Real-Time AI Chat & Vision Assistant -->
+  <!-- 2. Create PDF Workspace -->
   <url>
-    <loc>https://manigamer.cv/?page=mani-ai</loc>
-    <lastmod>2026-11-03</lastmod>
+    <loc>https://manigamer.cv/#create-pdf</loc>
+    <lastmod>2026-11-08</lastmod>
     <changefreq>daily</changefreq>
+    <priority>0.98</priority>
+  </url>
+
+  <!-- 3. JPG & PNG to PDF Converter -->
+  <url>
+    <loc>https://manigamer.cv/#jpg-to-pdf</loc>
+    <lastmod>2026-11-08</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.95</priority>
   </url>
 
-  <!-- 3. AI Workflow & Automation Services -->
+  <!-- 4. Developer Money Bagga -->
   <url>
-    <loc>https://manigamer.cv/?page=services</loc>
-    <lastmod>2026-11-03</lastmod>
+    <loc>https://manigamer.cv/#developer</loc>
+    <lastmod>2026-11-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.92</priority>
+  </url>
+
+  <!-- 5. Direct Contact -->
+  <url>
+    <loc>https://manigamer.cv/#contact</loc>
+    <lastmod>2026-11-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
   </url>
 
-  <!-- 4. Portfolio & AI Case Studies -->
+  <!-- 6. Privacy Policy (Google AdSense Compliant for Create PDF) -->
   <url>
-    <loc>https://manigamer.cv/?page=case-studies</loc>
-    <lastmod>2026-11-03</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://manigamer.cv/#privacy-policy</loc>
+    <lastmod>2026-11-08</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
 
-  <!-- 5. Developer Profile (Money Bagga) -->
+  <!-- 7. Terms of Service -->
   <url>
-    <loc>https://manigamer.cv/?page=developer</loc>
-    <lastmod>2026-11-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <!-- 6. Leadership & Team Section -->
-  <url>
-    <loc>https://manigamer.cv/?page=team</loc>
-    <lastmod>2026-11-03</lastmod>
+    <loc>https://manigamer.cv/#terms-of-service</loc>
+    <lastmod>2026-11-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
 
-  <!-- 7. Contact & Project Inquiry -->
+  <!-- 8. Disclaimer -->
   <url>
-    <loc>https://manigamer.cv/?page=contact</loc>
-    <lastmod>2026-11-03</lastmod>
+    <loc>https://manigamer.cv/#disclaimer</loc>
+    <lastmod>2026-11-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
-  </url>
-
-  <!-- 8. Privacy Policy (Required for Google AdSense Approval) -->
-  <url>
-    <loc>https://manigamer.cv/?page=privacy-policy</loc>
-    <lastmod>2026-11-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.75</priority>
-  </url>
-
-  <!-- 9. Terms of Service (Required for Google AdSense Approval) -->
-  <url>
-    <loc>https://manigamer.cv/?page=terms-of-service</loc>
-    <lastmod>2026-11-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.70</priority>
-  </url>
-
-  <!-- 10. Official AI & Website Disclaimer -->
-  <url>
-    <loc>https://manigamer.cv/?page=disclaimer</loc>
-    <lastmod>2026-11-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.70</priority>
   </url>
 
 </urlset>
