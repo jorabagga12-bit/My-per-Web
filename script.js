@@ -1,7 +1,7 @@
 // =========================================================================
-// WELCOME TO THE PDF WEB — POWERED BY MONEY (manigamer.cv)
-// 100% Hardcoded Client-Side Image (JPG / PNG / WebP / Any Photo) to PDF Engine
-// Zero API Keys • Zero Server Storage • Max 5 MB Per Photo • Auto-Download
+// PDF — MANI DEVELOPER (manigamer.cv)
+// 100% Hardcoded Client-Side 25-Page Image (JPG / PNG / WebP) to PDF Engine
+// Zero API Keys • 100% User Privacy • Up to 25 Pages at Once • Auto-Download
 // =========================================================================
 
 function closeMobileNav() {
@@ -10,8 +10,8 @@ function closeMobileNav() {
 }
 
 // =========================================================================
-// HARDCODED BINARY PDF 1.4 BUILDER (NO EXTERNAL LIBRARY REQUIRED)
-// Converts 1 or more Canvas JPEG DataURLs into a real, multi-page .PDF file
+// HARDCODED BINARY PDF 1.4 BUILDER (SUPPORTS UP TO 25 PAGES AT ONCE)
+// Converts 1 to 25 Canvas JPEG DataURLs into a single multi-page .PDF file
 // =========================================================================
 function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode = 'portrait') {
     const chunks = [];
@@ -59,7 +59,7 @@ function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode 
     offsets[2] = byteOffset;
     pushStr(`2 0 obj\n<< /Type /Pages /Kids [ ${kidsRefs.join(' ')} ] /Count ${numPages} >>\nendobj\n`);
 
-    // 3..N: Page, Content Stream, and JPEG XObject for each uploaded photo
+    // 3..N: Page, Content Stream, and JPEG XObject for each uploaded photo (1..25)
     for (let i = 0; i < numPages; i++) {
         const item = imagesList[i];
         const pageObjId = 3 + i * 3;
@@ -147,13 +147,32 @@ function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode 
 }
 
 // =========================================================================
-// MAIN DOM CONTROLLER & UI WORKFLOW
+// MAIN DOM CONTROLLER & 25-PAGE PRIVACY WORKFLOW
 // =========================================================================
 document.addEventListener("DOMContentLoaded", () => {
-    const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // Strict 5 MB Limit
+    const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB Per Photo Limit
+    const MAX_PAGES_LIMIT = 25;                  // Up to 25 Pages at Once
     let uploadedImages = [];
     let generatedPdfUrl = null;
-    let generatedPdfFilename = "Money-Bagga-Document.pdf";
+    let generatedPdfFilename = "Mani-Developer-Document.pdf";
+
+    // =====================================================================
+    // SHOW NAVBAR ONLY WHEN SCROLLING DOWN (HIDDEN AT TOP)
+    // =====================================================================
+    const scrollNavbarWrapper = document.getElementById('scrollNavbarWrapper');
+    function updateNavbarOnScroll() {
+        if (!scrollNavbarWrapper) return;
+        const currentScrollY = window.scrollY || window.pageYOffset || 0;
+        if (currentScrollY > 40) {
+            scrollNavbarWrapper.classList.remove('nav-hidden-top');
+            scrollNavbarWrapper.classList.add('nav-visible-scroll');
+        } else {
+            scrollNavbarWrapper.classList.remove('nav-visible-scroll');
+            scrollNavbarWrapper.classList.add('nav-hidden-top');
+        }
+    }
+    updateNavbarOnScroll();
+    window.addEventListener('scroll', updateNavbarOnScroll, { passive: true });
 
     // Toast Helper (Zero Emoji)
     function showToast(message, type = 'success') {
@@ -237,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Elements for Multi-Step File Manager PDF Tool
+    // Elements for Multi-Step 25-Page PDF Tool
     const fileInput = document.getElementById('pdf-file-input');
     const selectImagesBtn = document.getElementById('select-images-btn');
     const uploadDropzone = document.getElementById('upload-dropzone');
@@ -246,6 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const convertToPdfBtn = document.getElementById('convert-to-pdf-btn');
     const previewGrid = document.getElementById('pdf-preview-grid');
     const imageCountBadge = document.getElementById('image-count-badge');
+    const queueLimitIndicator = document.getElementById('queue-limit-indicator');
     const pageSizeSelect = document.getElementById('pdf-page-size');
     const orientationSelect = document.getElementById('pdf-orientation');
 
@@ -280,7 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    const maxDim = 1800;
+                    const maxDim = 1750;
                     let w = img.naturalWidth || img.width || 800;
                     let h = img.naturalHeight || img.height || 1000;
                     if (w > maxDim || h > maxDim) {
@@ -301,7 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     ctx.fillRect(0, 0, w, h);
                     ctx.drawImage(img, 0, 0, w, h);
 
-                    const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                    const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.90);
                     resolve({
                         id: Date.now() + Math.random(),
                         name: file.name,
@@ -318,7 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Render Uploaded Cards with Sequential Numbering Starting from 1 (01, 02, 03...)
+    // Render Uploaded Cards with Sequential Numbering Starting from 1 (01..25)
     function renderWorkspaceCards() {
         if (!previewGrid) return;
         previewGrid.innerHTML = '';
@@ -366,8 +386,12 @@ document.addEventListener("DOMContentLoaded", () => {
             previewGrid.appendChild(card);
         });
 
+        const total = uploadedImages.length;
         if (imageCountBadge) {
-            imageCountBadge.textContent = String(uploadedImages.length);
+            imageCountBadge.textContent = String(total);
+        }
+        if (queueLimitIndicator) {
+            queueLimitIndicator.textContent = `${String(total).padStart(2, '0')} / ${MAX_PAGES_LIMIT} Pages Selected`;
         }
     }
 
@@ -376,6 +400,10 @@ document.addEventListener("DOMContentLoaded", () => {
         let addedCount = 0;
 
         for (const file of Array.from(fileList)) {
+            if (uploadedImages.length >= MAX_PAGES_LIMIT) {
+                showToast(`Maximum ${MAX_PAGES_LIMIT} pages allowed in one PDF batch`, "error");
+                break;
+            }
             try {
                 const normalized = await normalizeImageFileToJpeg(file);
                 uploadedImages.push(normalized);
@@ -390,7 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (uploadedImages.length > 0 && addedCount > 0) {
             renderWorkspaceCards();
             showStage('workspace');
-            showToast(`${addedCount} photo(s) loaded in File Manager`, "success");
+            showToast(`${uploadedImages.length} / ${MAX_PAGES_LIMIT} page(s) ready to Convert PDF`, "success");
         }
     }
 
@@ -414,7 +442,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     if (addMoreImagesBtn && fileInput) {
-        addMoreImagesBtn.addEventListener('click', () => fileInput.click());
+        addMoreImagesBtn.addEventListener('click', () => {
+            if (uploadedImages.length >= MAX_PAGES_LIMIT) {
+                showToast(`25-Page limit reached! Click Convert PDF now.`, "error");
+                return;
+            }
+            fileInput.click();
+        });
     }
     if (fileInput) {
         fileInput.addEventListener('change', (e) => handleSelectedFiles(e.target.files));
@@ -436,7 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.removeChild(a);
     }
 
-    // Convert to PDF -> 1.6s Paper Loading Animation -> Auto-Download -> Done Screen
+    // Convert PDF -> 1.5s Paper Loading Animation -> Auto-Download -> Done Screen
     if (convertToPdfBtn) {
         convertToPdfBtn.addEventListener('click', () => {
             if (uploadedImages.length === 0) {
@@ -456,16 +490,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     generatedPdfUrl = URL.createObjectURL(pdfBlob);
 
                     const baseName = uploadedImages[0].name.replace(/\.[^/.]+$/, "");
-                    generatedPdfFilename = `${baseName}-Money-PDF.pdf`;
+                    generatedPdfFilename = `${baseName}-Mani-PDF.pdf`;
 
                     showStage('done');
                     triggerBrowserDownload(generatedPdfUrl, generatedPdfFilename);
-                    showToast("PDF Downloaded automatically", "success");
+                    showToast(`${uploadedImages.length}-Page PDF Downloaded!`, "success");
                 } catch (err) {
                     showStage('workspace');
                     showToast("Error generating PDF. Try another image.", "error");
                 }
-            }, 1600);
+            }, 1500);
         });
     }
 
@@ -478,7 +512,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // 100% Privacy Memory Wipe on Reset/Delete
     function resetConverter() {
+        uploadedImages.forEach(item => { item.jpegDataUrl = ""; });
         uploadedImages = [];
         if (generatedPdfUrl) {
             URL.revokeObjectURL(generatedPdfUrl);
@@ -491,13 +527,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (doneDeleteBtn) {
         doneDeleteBtn.addEventListener('click', () => {
             resetConverter();
-            showToast("Cleared from browser memory", "success");
+            showToast("100% Private: Session memory wiped!", "success");
         });
     }
     if (doneCopyLinkBtn) {
         doneCopyLinkBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(window.location.origin + "/#create-pdf");
-            showToast("PDF Web link copied", "success");
+            showToast("PDF link copied", "success");
         });
     }
 
