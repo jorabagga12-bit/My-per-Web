@@ -1,5 +1,5 @@
 // =========================================================================
-// CREATE PDF — POWERED BY MONEY (manigamer.cv)
+// WELCOME TO THE PDF WEB — POWERED BY MONEY (manigamer.cv)
 // 100% Hardcoded Client-Side Image (JPG / PNG / WebP / Any Photo) to PDF Engine
 // Zero API Keys • Zero Server Storage • Max 5 MB Per Photo • Auto-Download
 // =========================================================================
@@ -155,14 +155,14 @@ document.addEventListener("DOMContentLoaded", () => {
     let generatedPdfUrl = null;
     let generatedPdfFilename = "Money-Bagga-Document.pdf";
 
-    // Toast Helper
+    // Toast Helper (Zero Emoji)
     function showToast(message, type = 'success') {
         const container = document.getElementById('toastContainer');
         if (!container) return;
         container.innerHTML = '';
         const toast = document.createElement('div');
         toast.className = `iphone-glass expo-glass-effect toast-msg ${type}`;
-        toast.textContent = (type === 'success' ? '✓ ' : '⚠ ') + message;
+        toast.textContent = (type === 'success' ? '[OK] ' : '[!] ') + message;
         container.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 10);
         setTimeout(() => {
@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 2500);
     }
 
-    // Mobile Menu Toggle (Original 3-Line Button)
+    // Mobile Menu Toggle
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mobileNavOverlay = document.getElementById('mobileNavOverlay');
     const mobileNavClose = document.getElementById('mobileNavClose');
@@ -191,12 +191,43 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // Animated Count-Up Starting from 1 (1 -> Target)
+    const countElements = document.querySelectorAll('.count-up');
+    if ('IntersectionObserver' in window && countElements.length > 0) {
+        const countObserver = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const el = entry.target;
+                const target = parseInt(el.getAttribute('data-target') || '1', 10);
+                const suffix = el.getAttribute('data-suffix') || '';
+                let current = 1;
+                el.textContent = `${current}${suffix}`;
+                if (target > 1) {
+                    const duration = 900;
+                    const steps = target - 1;
+                    const stepTime = Math.max(18, Math.floor(duration / steps));
+                    const timer = setInterval(() => {
+                        current += Math.max(1, Math.ceil((target - current) / 8));
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(timer);
+                        }
+                        el.textContent = `${current}${suffix}`;
+                    }, stepTime);
+                }
+                obs.unobserve(el);
+            });
+        }, { threshold: 0.3 });
+        countElements.forEach(el => countObserver.observe(el));
+    }
+
     // Secret Login Modal
     const secretLoginTrigger = document.getElementById('secretLoginTrigger');
     const secretLoginModal = document.getElementById('secretLoginModal');
     const closeLoginModal = document.getElementById('closeLoginModal');
     if (secretLoginTrigger && secretLoginModal) {
-        secretLoginTrigger.addEventListener('dblclick', () => {
+        secretLoginTrigger.addEventListener('dblclick', (e) => {
+            e.preventDefault();
             secretLoginModal.style.display = 'flex';
         });
     }
@@ -206,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Elements for Multi-Step PDF Tool
+    // Elements for Multi-Step File Manager PDF Tool
     const fileInput = document.getElementById('pdf-file-input');
     const selectImagesBtn = document.getElementById('select-images-btn');
     const uploadDropzone = document.getElementById('upload-dropzone');
@@ -239,10 +270,10 @@ document.addEventListener("DOMContentLoaded", () => {
     function normalizeImageFileToJpeg(file) {
         return new Promise((resolve, reject) => {
             if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|bmp|svg)$/i.test(file.name)) {
-                return reject(new Error(`"${file.name}" is not a valid photo!`));
+                return reject(new Error(`"${file.name}" is not a valid photo.`));
             }
             if (file.size > MAX_FILE_SIZE_BYTES) {
-                return reject(new Error(`"${file.name}" exceeds the 5 MB limit!`));
+                return reject(new Error(`"${file.name}" exceeds the 5 MB limit.`));
             }
 
             const reader = new FileReader();
@@ -287,13 +318,21 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Render Uploaded Cards with Sequential Numbering Starting from 1 (01, 02, 03...)
     function renderWorkspaceCards() {
         if (!previewGrid) return;
         previewGrid.innerHTML = '';
 
         uploadedImages.forEach((item, index) => {
+            const pageNum = index + 1;
+            const paddedNum = String(pageNum).padStart(2, '0');
+
             const card = document.createElement('div');
             card.className = 'preview-paper-sheet';
+
+            const numBadge = document.createElement('span');
+            numBadge.className = 'sheet-page-num';
+            numBadge.textContent = `Page ${paddedNum}`;
 
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
@@ -318,8 +357,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const nameEl = document.createElement('div');
             nameEl.className = 'preview-file-name';
-            nameEl.textContent = item.name;
+            nameEl.textContent = `${pageNum}. ${item.name}`;
 
+            card.appendChild(numBadge);
             card.appendChild(removeBtn);
             card.appendChild(thumbFrame);
             card.appendChild(nameEl);
@@ -350,7 +390,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (uploadedImages.length > 0 && addedCount > 0) {
             renderWorkspaceCards();
             showStage('workspace');
-            showToast(`${addedCount} photo(s) ready for PDF!`, "success");
+            showToast(`${addedCount} photo(s) loaded in File Manager`, "success");
         }
     }
 
@@ -400,7 +440,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (convertToPdfBtn) {
         convertToPdfBtn.addEventListener('click', () => {
             if (uploadedImages.length === 0) {
-                showToast("Please select at least 1 photo!", "error");
+                showToast("Please select at least 1 photo", "error");
                 return;
             }
 
@@ -420,7 +460,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     showStage('done');
                     triggerBrowserDownload(generatedPdfUrl, generatedPdfFilename);
-                    showToast("PDF Downloaded automatically!", "success");
+                    showToast("PDF Downloaded automatically", "success");
                 } catch (err) {
                     showStage('workspace');
                     showToast("Error generating PDF. Try another image.", "error");
@@ -451,13 +491,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (doneDeleteBtn) {
         doneDeleteBtn.addEventListener('click', () => {
             resetConverter();
-            showToast("Cleared from browser memory!", "success");
+            showToast("Cleared from browser memory", "success");
         });
     }
     if (doneCopyLinkBtn) {
         doneCopyLinkBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(window.location.origin + "/#create-pdf");
-            showToast("Create PDF link copied!", "success");
+            showToast("PDF Web link copied", "success");
         });
     }
 
@@ -484,7 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (contactForm) {
         contactForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            showToast("Request Sent Successfully!", "success");
+            showToast("Request Sent Successfully", "success");
             contactForm.reset();
         });
     }
