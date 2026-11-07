@@ -40,18 +40,11 @@ function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode 
         return bytes;
     }
 
-    // Object ID layout:
-    // 1: Catalog
-    // 2: Pages
-    // For each page i (0..N-1):
-    //   Page Obj ID     = 3 + i * 3
-    //   Content Obj ID  = 4 + i * 3
-    //   Image XObj ID   = 5 + i * 3
     const numPages = imagesList.length;
     const totalObjects = 2 + numPages * 3;
     const offsets = new Array(totalObjects + 1).fill(0);
 
-    // PDF Header (with binary comment)
+    // PDF 1.4 Header
     pushStr("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
 
     // 1. Catalog Object
@@ -115,7 +108,7 @@ function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode 
             `/Contents ${contentObjId} 0 R >>\nendobj\n`
         );
 
-        // Content Stream (Draws Image onto Page)
+        // Content Stream
         const streamCmd = `q\n${drawW.toFixed(2)} 0 0 ${drawH.toFixed(2)} ${drawX.toFixed(2)} ${drawY.toFixed(2)} cm\n${imgName} Do\nQ\n`;
         const streamBytes = encoder.encode(streamCmd);
         offsets[contentObjId] = byteOffset;
@@ -123,7 +116,7 @@ function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode 
         pushBytes(streamBytes);
         pushStr("\nendstream\nendobj\n");
 
-        // Image XObject (Baseline JPEG Stream)
+        // Image XObject
         const jpegBytes = base64ToUint8Array(item.jpegDataUrl);
         offsets[imgObjId] = byteOffset;
         pushStr(
@@ -168,17 +161,17 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!container) return;
         container.innerHTML = '';
         const toast = document.createElement('div');
-        toast.className = `iphone-glass expo-glass-effect paper-card toast-msg ${type}`;
+        toast.className = `iphone-glass expo-glass-effect toast-msg ${type}`;
         toast.textContent = (type === 'success' ? '✓ ' : '⚠ ') + message;
         container.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 10);
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 350);
-        }, 2600);
+        }, 2500);
     }
 
-    // Mobile Menu
+    // Mobile Menu Toggle (Original 3-Line Button)
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mobileNavOverlay = document.getElementById('mobileNavOverlay');
     const mobileNavClose = document.getElementById('mobileNavClose');
@@ -187,6 +180,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (mobileNavClose && mobileNavOverlay) {
         mobileNavClose.addEventListener('click', () => mobileNavOverlay.classList.remove('open'));
+    }
+
+    // Active Navbar Link Highlight
+    const navButtons = document.querySelectorAll('.nav-links .nav-btn');
+    navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            navButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    // Secret Login Modal
+    const secretLoginTrigger = document.getElementById('secretLoginTrigger');
+    const secretLoginModal = document.getElementById('secretLoginModal');
+    const closeLoginModal = document.getElementById('closeLoginModal');
+    if (secretLoginTrigger && secretLoginModal) {
+        secretLoginTrigger.addEventListener('dblclick', () => {
+            secretLoginModal.style.display = 'flex';
+        });
+    }
+    if (closeLoginModal && secretLoginModal) {
+        closeLoginModal.addEventListener('click', () => {
+            secretLoginModal.style.display = 'none';
+        });
     }
 
     // Elements for Multi-Step PDF Tool
@@ -249,7 +266,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     canvas.width = w;
                     canvas.height = h;
                     const ctx = canvas.getContext('2d');
-                    // Fill crisp white paper background so transparent PNGs look clean
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, w, h);
                     ctx.drawImage(img, 0, 0, w, h);
@@ -263,7 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         jpegDataUrl: jpegDataUrl
                     });
                 };
-                img.onerror = () => reject(new Error(`Could not decode image "${file.name}".`));
+                img.onerror = () => reject(new Error(`Could not read image "${file.name}".`));
                 img.src = e.target.result;
             };
             reader.onerror = () => reject(new Error("File read error."));
@@ -404,7 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     showStage('done');
                     triggerBrowserDownload(generatedPdfUrl, generatedPdfFilename);
-                    showToast("PDF Downloaded to your device!", "success");
+                    showToast("PDF Downloaded automatically!", "success");
                 } catch (err) {
                     showStage('workspace');
                     showToast("Error generating PDF. Try another image.", "error");
@@ -445,7 +461,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // FAQ Accordion
+    // FAQ Toggle Boxes
     const faqs = document.querySelectorAll('.faq-item');
     faqs.forEach(faq => {
         faq.addEventListener('click', () => {
@@ -458,7 +474,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!isActive) {
                 faq.classList.add('active');
                 const icon = faq.querySelector('.faq-icon');
-                if (icon) icon.textContent = '−';
+                if (icon) icon.textContent = '×';
             }
         });
     });
@@ -468,7 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (contactForm) {
         contactForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            showToast("Message sent to Money Bagga!", "success");
+            showToast("Request Sent Successfully!", "success");
             contactForm.reset();
         });
     }
