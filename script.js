@@ -1,252 +1,447 @@
-// =====================================================
-// MANI AI MAIN SCRIPT (manigamer.cv)
-// =====================================================
+// =========================================================================
+// CREATE PDF — POWERED BY MONEY (manigamer.cv)
+// 100% Hardcoded Client-Side Image (JPG / PNG / WebP / Any Photo) to PDF Engine
+// Zero API Keys • Zero Server Storage • Max 5 MB Per Photo • Auto-Download
+// =========================================================================
+
 function closeMobileNav() {
     const nav = document.getElementById('mobileNavOverlay');
     if (nav) nav.classList.remove('open');
 }
 
-// =====================================================
-// 1. AES-256-GCM HARDWARE VAULT (API KEY LOCKED)
-// =====================================================
-const _AES_256_GCM_VAULT = (() => {
-    const _encBytes = new Uint8Array([
-        27, 11, 116, 27, 56, 98, 8, 20, 108, 16, 29, 49, 42, 32, 28, 54,
-        106, 41, 43, 44, 12, 3, 49, 52, 59, 43, 29, 21, 105, 107, 44, 40,
-        50, 25, 13, 108, 5, 12, 42, 43, 49, 55, 5, 16, 28, 8, 25, 104,
-        5, 61, 27, 61, 27
-    ]);
-    const _kMask = 0x5A;
-    let _cryptoKey = null;
-    let _iv = null;
-    let _cipherBuffer = null;
-    let _cachedKey = null;
+// =========================================================================
+// HARDCODED BINARY PDF 1.4 BUILDER (NO EXTERNAL LIBRARY REQUIRED)
+// Converts 1 or more Canvas JPEG DataURLs into a real, multi-page .PDF file
+// =========================================================================
+function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode = 'portrait') {
+    const chunks = [];
+    let byteOffset = 0;
+    const encoder = new TextEncoder();
 
-    async function _sealInHardware() {
-        if (_cryptoKey && _cipherBuffer) return;
-        const tempPlain = new Uint8Array(_encBytes.length);
-        for (let i = 0; i < _encBytes.length; i++) {
-            tempPlain[i] = _encBytes[i] ^ _kMask;
-        }
-        if (window.crypto && window.crypto.subtle) {
-            const rawKey = window.crypto.getRandomValues(new Uint8Array(32));
-            _iv = window.crypto.getRandomValues(new Uint8Array(12));
-            _cryptoKey = await window.crypto.subtle.importKey(
-                "raw",
-                rawKey,
-                { name: "AES-GCM", length: 256 },
-                false,
-                ["encrypt", "decrypt"]
-            );
-            _cipherBuffer = await window.crypto.subtle.encrypt(
-                { name: "AES-GCM", iv: _iv, tagLength: 128 },
-                _cryptoKey,
-                tempPlain
-            );
-            tempPlain.fill(0);
-        }
+    function pushStr(str) {
+        const bytes = encoder.encode(str);
+        chunks.push(bytes);
+        byteOffset += bytes.length;
     }
 
-    async function unlockKey() {
-        if (_cachedKey) return _cachedKey;
-        try {
-            await _sealInHardware();
-            if (_cryptoKey && _cipherBuffer && window.crypto && window.crypto.subtle) {
-                const decrypted = await window.crypto.subtle.decrypt(
-                    { name: "AES-GCM", iv: _iv, tagLength: 128 },
-                    _cryptoKey,
-                    _cipherBuffer
-                );
-                _cachedKey = new TextDecoder().decode(decrypted);
-                return _cachedKey;
+    function pushBytes(uint8) {
+        chunks.push(uint8);
+        byteOffset += uint8.length;
+    }
+
+    function base64ToUint8Array(dataUrl) {
+        const base64 = dataUrl.split(',')[1] || '';
+        const binStr = atob(base64);
+        const len = binStr.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binStr.charCodeAt(i);
+        }
+        return bytes;
+    }
+
+    // Object ID layout:
+    // 1: Catalog
+    // 2: Pages
+    // For each page i (0..N-1):
+    //   Page Obj ID     = 3 + i * 3
+    //   Content Obj ID  = 4 + i * 3
+    //   Image XObj ID   = 5 + i * 3
+    const numPages = imagesList.length;
+    const totalObjects = 2 + numPages * 3;
+    const offsets = new Array(totalObjects + 1).fill(0);
+
+    // PDF Header (with binary comment)
+    pushStr("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+
+    // 1. Catalog Object
+    offsets[1] = byteOffset;
+    pushStr("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+    // 2. Pages Tree Object
+    const kidsRefs = [];
+    for (let i = 0; i < numPages; i++) {
+        kidsRefs.push(`${3 + i * 3} 0 R`);
+    }
+    offsets[2] = byteOffset;
+    pushStr(`2 0 obj\n<< /Type /Pages /Kids [ ${kidsRefs.join(' ')} ] /Count ${numPages} >>\nendobj\n`);
+
+    // 3..N: Page, Content Stream, and JPEG XObject for each uploaded photo
+    for (let i = 0; i < numPages; i++) {
+        const item = imagesList[i];
+        const pageObjId = 3 + i * 3;
+        const contentObjId = 4 + i * 3;
+        const imgObjId = 5 + i * 3;
+        const imgName = `/Im${i + 1}`;
+
+        const imgW = Math.max(1, item.width);
+        const imgH = Math.max(1, item.height);
+
+        let pageW = 595.28; // A4 Portrait Width (pt)
+        let pageH = 841.89; // A4 Portrait Height (pt)
+        let drawX = 0, drawY = 0, drawW = pageW, drawH = pageH;
+
+        if (pageSizeMode === 'fit') {
+            pageW = imgW * 0.75;
+            pageH = imgH * 0.75;
+            if (pageW < 200) {
+                const s = 595.28 / pageW;
+                pageW *= s;
+                pageH *= s;
             }
-        } catch (e) {}
-        _cachedKey = Array.from(_encBytes, b => String.fromCharCode(b ^ _kMask)).join('');
-        return _cachedKey;
+            drawW = pageW;
+            drawH = pageH;
+        } else {
+            if (orientationMode === 'landscape') {
+                pageW = 841.89;
+                pageH = 595.28;
+            }
+            const margin = 24;
+            const availW = pageW - margin * 2;
+            const availH = pageH - margin * 2;
+            const scale = Math.min(availW / imgW, availH / imgH);
+            drawW = +(imgW * scale).toFixed(2);
+            drawH = +(imgH * scale).toFixed(2);
+            drawX = +((pageW - drawW) / 2).toFixed(2);
+            drawY = +((pageH - drawH) / 2).toFixed(2);
+        }
+
+        // Page Object
+        offsets[pageObjId] = byteOffset;
+        pushStr(
+            `${pageObjId} 0 obj\n` +
+            `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)}] ` +
+            `/Resources << /XObject << ${imgName} ${imgObjId} 0 R >> >> ` +
+            `/Contents ${contentObjId} 0 R >>\nendobj\n`
+        );
+
+        // Content Stream (Draws Image onto Page)
+        const streamCmd = `q\n${drawW.toFixed(2)} 0 0 ${drawH.toFixed(2)} ${drawX.toFixed(2)} ${drawY.toFixed(2)} cm\n${imgName} Do\nQ\n`;
+        const streamBytes = encoder.encode(streamCmd);
+        offsets[contentObjId] = byteOffset;
+        pushStr(`${contentObjId} 0 obj\n<< /Length ${streamBytes.length} >>\nstream\n`);
+        pushBytes(streamBytes);
+        pushStr("\nendstream\nendobj\n");
+
+        // Image XObject (Baseline JPEG Stream)
+        const jpegBytes = base64ToUint8Array(item.jpegDataUrl);
+        offsets[imgObjId] = byteOffset;
+        pushStr(
+            `${imgObjId} 0 obj\n` +
+            `<< /Type /XObject /Subtype /Image /Width ${imgW} /Height ${imgH} ` +
+            `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`
+        );
+        pushBytes(jpegBytes);
+        pushStr("\nendstream\nendobj\n");
     }
 
-    return { unlockKey };
-})();
-
-_AES_256_GCM_VAULT.unlockKey().catch(() => {});
-
-// =====================================================
-// 2. GOOGLE STUDIO CONFIG
-// =====================================================
-const GEMINI_CONFIG = {
-    model: "gemini-flash-latest",
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/models"
-};
-
-// =====================================================
-// 3. ADSENSE-SAFE INPUT SANITIZER
-// =====================================================
-function _isExploitPayload(inputStr = "") {
-    const raw = String(inputStr || "").trim();
-    if (!raw) return false;
-    const patterns = [
-        /<script[\s>]/i,
-        /javascript\s*:/i,
-        /\b(onerror|onload|onmouseover|onfocus)\s*=/i,
-        /\b(drop\s+table|union\s+select|information_schema)\b/i
-    ];
-    return patterns.some(rx => rx.test(raw));
-}
-
-// In-RAM conversational context memory
-let conversationHistory = [];
-
-// Handles Sitemap SEO URLs (?page=...) and Legal Page Modals
-function handleSeoAndLegalRouting() {
-    const params = new URLSearchParams(window.location.search);
-    const pageParam = params.get("page");
-    const routeMap = {
-        "mani-ai": { hash: "#mani-ai-chat", title: "Use Mani's AI - Real-Time Online Assistant | manigamer.cv" },
-        "services": { hash: "#services", title: "AI Automation Services - Mani AI | manigamer.cv" },
-        "case-studies": { hash: "#case-studies", title: "AI Portfolio & Case Studies - Mani AI | manigamer.cv" },
-        "developer": { hash: "#gallery", title: "Money Bagga - Full-Stack Developer | manigamer.cv" },
-        "team": { hash: "#team", title: "Leadership & Team - Mani AI | manigamer.cv" },
-        "contact": { hash: "#contact", title: "Contact Money Bagga - Mani AI | manigamer.cv" },
-        "privacy-policy": { hash: "#privacy-policy", title: "Privacy Policy - Mani AI | manigamer.cv" },
-        "terms-of-service": { hash: "#terms-of-service", title: "Terms of Service - Mani AI | manigamer.cv" },
-        "disclaimer": { hash: "#disclaimer", title: "Disclaimer - Mani AI | manigamer.cv" }
-    };
-
-    if (pageParam && routeMap[pageParam]) {
-        const target = routeMap[pageParam];
-        document.title = target.title;
-        if (window.location.hash !== target.hash) {
-            window.location.hash = target.hash;
-        }
-        const targetEl = document.querySelector(target.hash);
-        if (targetEl && !target.hash.includes("policy") && !target.hash.includes("terms") && !target.hash.includes("disclaimer")) {
-            setTimeout(() => targetEl.scrollIntoView({ behavior: "smooth" }), 250);
-        }
+    // XREF Table
+    const xrefStart = byteOffset;
+    pushStr(`xref\n0 ${totalObjects + 1}\n`);
+    pushStr("0000000000 65535 f \n");
+    for (let id = 1; id <= totalObjects; id++) {
+        const offStr = String(offsets[id]).padStart(10, '0');
+        pushStr(`${offStr} 00000 n \n`);
     }
+
+    // Trailer
+    pushStr(
+        `trailer\n<< /Size ${totalObjects + 1} /Root 1 0 R >>\n` +
+        `startxref\n${xrefStart}\n%%EOF`
+    );
+
+    return new Blob(chunks, { type: "application/pdf" });
 }
 
+// =========================================================================
+// MAIN DOM CONTROLLER & UI WORKFLOW
+// =========================================================================
 document.addEventListener("DOMContentLoaded", () => {
-    try {
-        localStorage.removeItem('maniLeads');
-    } catch (e) {}
+    const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // Strict 5 MB Limit
+    let uploadedImages = [];
+    let generatedPdfUrl = null;
+    let generatedPdfFilename = "Money-Bagga-Document.pdf";
 
-    handleSeoAndLegalRouting();
-
-    // =====================================================
-    // UNIVERSE STARS CANVAS ANIMATION
-    // =====================================================
-    const starsCanvas = document.getElementById('stars-canvas');
-    if (starsCanvas) {
-        const starsCtx = starsCanvas.getContext('2d');
-        let stars = [];
-        const isMobile = window.innerWidth <= 768;
-        const STAR_COUNT = isMobile ? 120 : 220;
-
-        function resizeStarsCanvas() {
-            starsCanvas.width = window.innerWidth;
-            starsCanvas.height = window.innerHeight;
-        }
-        resizeStarsCanvas();
-        window.addEventListener('resize', resizeStarsCanvas);
-
-        for (let i = 0; i < STAR_COUNT; i++) {
-            const baseX = Math.random() * window.innerWidth;
-            const baseY = Math.random() * window.innerHeight;
-            stars.push({
-                baseX: baseX, baseY: baseY, x: baseX, y: baseY,
-                radius: Math.random() * 1.4 + 0.3,
-                opacity: Math.random() * 0.7 + 0.2,
-                twinkleSpeed: (Math.random() * 0.015 + 0.003) * (Math.random() > 0.5 ? 1 : -1),
-                orbitRadius: Math.random() * 3 + 0.5,
-                orbitAngle: Math.random() * Math.PI * 2,
-                orbitSpeed: (Math.random() - 0.5) * 0.003,
-                color: Math.random() > 0.85 ? `rgba(180, 200, 255, ` : (Math.random() > 0.7 ? `rgba(255, 230, 200, ` : `rgba(255, 255, 255, `)
-            });
-        }
-
-        function drawStars() {
-            starsCtx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
-            for (let s of stars) {
-                s.orbitAngle += s.orbitSpeed;
-                s.x = s.baseX + Math.cos(s.orbitAngle) * s.orbitRadius;
-                s.y = s.baseY + Math.sin(s.orbitAngle) * s.orbitRadius;
-                s.opacity += s.twinkleSpeed;
-                if (s.opacity >= 0.95 || s.opacity <= 0.1) s.twinkleSpeed *= -1;
-                s.opacity = Math.max(0.05, Math.min(0.95, s.opacity));
-
-                starsCtx.beginPath();
-                starsCtx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-                starsCtx.fillStyle = s.color + s.opacity + ')';
-                starsCtx.fill();
-
-                if (s.radius > 1.2) {
-                    starsCtx.beginPath();
-                    starsCtx.arc(s.x, s.y, s.radius * 2.5, 0, Math.PI * 2);
-                    starsCtx.fillStyle = s.color + (s.opacity * 0.15) + ')';
-                    starsCtx.fill();
-                }
-            }
-            requestAnimationFrame(drawStars);
-        }
-        drawStars();
+    // Toast Helper
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        const toast = document.createElement('div');
+        toast.className = `iphone-glass expo-glass-effect paper-card toast-msg ${type}`;
+        toast.textContent = (type === 'success' ? '✓ ' : '⚠ ') + message;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 350);
+        }, 2600);
     }
 
-    // Mobile Menu Toggle
+    // Mobile Menu
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mobileNavOverlay = document.getElementById('mobileNavOverlay');
     const mobileNavClose = document.getElementById('mobileNavClose');
     if (mobileMenuBtn && mobileNavOverlay) {
-        mobileMenuBtn.addEventListener('click', () => { mobileNavOverlay.classList.add('open'); });
+        mobileMenuBtn.addEventListener('click', () => mobileNavOverlay.classList.add('open'));
     }
     if (mobileNavClose && mobileNavOverlay) {
-        mobileNavClose.addEventListener('click', () => { mobileNavOverlay.classList.remove('open'); });
+        mobileNavClose.addEventListener('click', () => mobileNavOverlay.classList.remove('open'));
     }
 
-    // Active Navbar Link Highlight on Click
-    const navButtons = document.querySelectorAll('.nav-links .nav-btn');
-    navButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            navButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        });
-    });
+    // Elements for Multi-Step PDF Tool
+    const fileInput = document.getElementById('pdf-file-input');
+    const selectImagesBtn = document.getElementById('select-images-btn');
+    const uploadDropzone = document.getElementById('upload-dropzone');
+    const addMoreImagesBtn = document.getElementById('add-more-images-btn');
+    const workspaceBackBtn = document.getElementById('workspace-back-btn');
+    const convertToPdfBtn = document.getElementById('convert-to-pdf-btn');
+    const previewGrid = document.getElementById('pdf-preview-grid');
+    const imageCountBadge = document.getElementById('image-count-badge');
+    const pageSizeSelect = document.getElementById('pdf-page-size');
+    const orientationSelect = document.getElementById('pdf-orientation');
 
-    // SCROLL REVEAL
-    const revealElements = document.querySelectorAll(".reveal-up");
-    if ('IntersectionObserver' in window) {
-        const observerOptions = { root: null, rootMargin: "0px", threshold: 0.08 };
-        const scrollObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add("active");
-                    entry.target.classList.add("seen");
+    const stepUpload = document.getElementById('pdf-step-upload');
+    const stepWorkspace = document.getElementById('pdf-step-workspace');
+    const stepLoading = document.getElementById('pdf-step-loading');
+    const stepDone = document.getElementById('pdf-step-done');
+
+    const downloadPdfAgainBtn = document.getElementById('download-pdf-again-btn');
+    const doneBackBtn = document.getElementById('done-back-btn');
+    const doneDeleteBtn = document.getElementById('done-delete-btn');
+    const doneCopyLinkBtn = document.getElementById('done-copy-link-btn');
+
+    function showStage(stageName) {
+        if (stepUpload) stepUpload.style.display = stageName === 'upload' ? 'block' : 'none';
+        if (stepWorkspace) stepWorkspace.style.display = stageName === 'workspace' ? 'block' : 'none';
+        if (stepLoading) stepLoading.style.display = stageName === 'loading' ? 'block' : 'none';
+        if (stepDone) stepDone.style.display = stageName === 'done' ? 'block' : 'none';
+    }
+
+    // Normalize ANY Image (JPG, PNG, WebP, GIF, BMP) onto a White Paper Canvas
+    function normalizeImageFileToJpeg(file) {
+        return new Promise((resolve, reject) => {
+            if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|bmp|svg)$/i.test(file.name)) {
+                return reject(new Error(`"${file.name}" is not a valid photo!`));
+            }
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                return reject(new Error(`"${file.name}" exceeds the 5 MB limit!`));
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const maxDim = 1800;
+                    let w = img.naturalWidth || img.width || 800;
+                    let h = img.naturalHeight || img.height || 1000;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.round(h * (maxDim / w));
+                            w = maxDim;
+                        } else {
+                            w = Math.round(w * (maxDim / h));
+                            h = maxDim;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    // Fill crisp white paper background so transparent PNGs look clean
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                    resolve({
+                        id: Date.now() + Math.random(),
+                        name: file.name,
+                        width: w,
+                        height: h,
+                        jpegDataUrl: jpegDataUrl
+                    });
+                };
+                img.onerror = () => reject(new Error(`Could not decode image "${file.name}".`));
+                img.src = e.target.result;
+            };
+            reader.onerror = () => reject(new Error("File read error."));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderWorkspaceCards() {
+        if (!previewGrid) return;
+        previewGrid.innerHTML = '';
+
+        uploadedImages.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'preview-paper-sheet';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-sheet-btn';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.title = 'Remove Photo';
+            removeBtn.addEventListener('click', () => {
+                uploadedImages.splice(index, 1);
+                if (uploadedImages.length === 0) {
+                    showStage('upload');
+                } else {
+                    renderWorkspaceCards();
                 }
             });
-        }, observerOptions);
-        revealElements.forEach(el => scrollObserver.observe(el));
-    } else {
-        revealElements.forEach(el => {
-            el.classList.add("active");
-            el.classList.add("seen");
+
+            const thumbFrame = document.createElement('div');
+            thumbFrame.className = 'preview-thumb-frame';
+            const imgEl = document.createElement('img');
+            imgEl.src = item.jpegDataUrl;
+            imgEl.alt = item.name;
+            thumbFrame.appendChild(imgEl);
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'preview-file-name';
+            nameEl.textContent = item.name;
+
+            card.appendChild(removeBtn);
+            card.appendChild(thumbFrame);
+            card.appendChild(nameEl);
+            previewGrid.appendChild(card);
+        });
+
+        if (imageCountBadge) {
+            imageCountBadge.textContent = String(uploadedImages.length);
+        }
+    }
+
+    async function handleSelectedFiles(fileList) {
+        if (!fileList || fileList.length === 0) return;
+        let addedCount = 0;
+
+        for (const file of Array.from(fileList)) {
+            try {
+                const normalized = await normalizeImageFileToJpeg(file);
+                uploadedImages.push(normalized);
+                addedCount++;
+            } catch (err) {
+                showToast(err.message || "Invalid photo", "error");
+            }
+        }
+
+        if (fileInput) fileInput.value = '';
+
+        if (uploadedImages.length > 0 && addedCount > 0) {
+            renderWorkspaceCards();
+            showStage('workspace');
+            showToast(`${addedCount} photo(s) ready for PDF!`, "success");
+        }
+    }
+
+    if (selectImagesBtn && fileInput) {
+        selectImagesBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
+    if (uploadDropzone && fileInput) {
+        uploadDropzone.addEventListener('click', () => fileInput.click());
+        uploadDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadDropzone.classList.add('dragover');
+        });
+        uploadDropzone.addEventListener('dragleave', () => uploadDropzone.classList.remove('dragover'));
+        uploadDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadDropzone.classList.remove('dragover');
+            handleSelectedFiles(e.dataTransfer.files);
+        });
+    }
+    if (addMoreImagesBtn && fileInput) {
+        addMoreImagesBtn.addEventListener('click', () => fileInput.click());
+    }
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => handleSelectedFiles(e.target.files));
+    }
+
+    if (workspaceBackBtn) {
+        workspaceBackBtn.addEventListener('click', () => {
+            uploadedImages = [];
+            showStage('upload');
         });
     }
 
-    // 3D Tilt Effect on Cards
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const cards = document.querySelectorAll('.card');
-    if (!isTouchDevice) {
-        cards.forEach(card => {
-            card.addEventListener('mousemove', e => {
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left; const y = e.clientY - rect.top;
-                const centerX = rect.width / 2; const centerY = rect.height / 2;
-                const rotateX = ((y - centerY) / centerY) * -6;
-                const rotateY = ((x - centerX) / centerX) * 6;
-                card.style.transform = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px) scale(1.01)`;
-            });
-            card.addEventListener('mouseleave', () => {
-                card.style.transform = `perspective(1200px) rotateX(0deg) rotateY(0deg) translateY(0deg) scale(1)`;
-            });
+    function triggerBrowserDownload(url, filename) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    // Convert to PDF -> 1.6s Paper Loading Animation -> Auto-Download -> Done Screen
+    if (convertToPdfBtn) {
+        convertToPdfBtn.addEventListener('click', () => {
+            if (uploadedImages.length === 0) {
+                showToast("Please select at least 1 photo!", "error");
+                return;
+            }
+
+            showStage('loading');
+
+            setTimeout(() => {
+                try {
+                    const pageSize = pageSizeSelect ? pageSizeSelect.value : 'a4';
+                    const orientation = orientationSelect ? orientationSelect.value : 'portrait';
+                    const pdfBlob = buildHardcodedPdfBlob(uploadedImages, pageSize, orientation);
+
+                    if (generatedPdfUrl) URL.revokeObjectURL(generatedPdfUrl);
+                    generatedPdfUrl = URL.createObjectURL(pdfBlob);
+
+                    const baseName = uploadedImages[0].name.replace(/\.[^/.]+$/, "");
+                    generatedPdfFilename = `${baseName}-Money-PDF.pdf`;
+
+                    showStage('done');
+                    triggerBrowserDownload(generatedPdfUrl, generatedPdfFilename);
+                    showToast("PDF Downloaded to your device!", "success");
+                } catch (err) {
+                    showStage('workspace');
+                    showToast("Error generating PDF. Try another image.", "error");
+                }
+            }, 1600);
+        });
+    }
+
+    if (downloadPdfAgainBtn) {
+        downloadPdfAgainBtn.addEventListener('click', () => {
+            if (generatedPdfUrl) {
+                triggerBrowserDownload(generatedPdfUrl, generatedPdfFilename);
+                showToast("Downloading PDF...", "success");
+            }
+        });
+    }
+
+    function resetConverter() {
+        uploadedImages = [];
+        if (generatedPdfUrl) {
+            URL.revokeObjectURL(generatedPdfUrl);
+            generatedPdfUrl = null;
+        }
+        showStage('upload');
+    }
+
+    if (doneBackBtn) doneBackBtn.addEventListener('click', resetConverter);
+    if (doneDeleteBtn) {
+        doneDeleteBtn.addEventListener('click', () => {
+            resetConverter();
+            showToast("Cleared from browser memory!", "success");
+        });
+    }
+    if (doneCopyLinkBtn) {
+        doneCopyLinkBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.origin + "/#create-pdf");
+            showToast("Create PDF link copied!", "success");
         });
     }
 
@@ -258,958 +453,23 @@ document.addEventListener("DOMContentLoaded", () => {
             faqs.forEach(f => {
                 f.classList.remove('active');
                 const icon = f.querySelector('.faq-icon');
-                if (icon) icon.innerText = '+';
+                if (icon) icon.textContent = '+';
             });
             if (!isActive) {
                 faq.classList.add('active');
                 const icon = faq.querySelector('.faq-icon');
-                if (icon) icon.innerText = '×';
+                if (icon) icon.textContent = '−';
             }
         });
     });
-
-    // Toast Notification
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toastContainer');
-        if (!container) return;
-        container.innerHTML = '';
-        const toast = document.createElement('div');
-        toast.className = `iphone-glass expo-glass-effect toast-msg ${type}`;
-        const icon = type === 'success' ? '✔ ' : '✖ ';
-        toast.innerHTML = icon + message;
-        container.appendChild(toast);
-        setTimeout(() => { toast.classList.add('show'); }, 10);
-        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 2200);
-    }
 
     // Contact Form
     const contactForm = document.getElementById('leadContactForm');
     if (contactForm) {
         contactForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            showToast("Request Sent Successfully!", "success");
+            showToast("Message sent to Money Bagga!", "success");
             contactForm.reset();
-        });
-    }
-
-    /* ========================================================
-       AI CHAT ENGINE, GALLERY PHOTO/VIDEO, CAMERA & SCREEN SHARE
-       ======================================================== */
-    const aiInput = document.getElementById('ai-chat-input');
-    const sendAiBtn = document.getElementById('send-ai-btn');
-    const chatHistory = document.getElementById('ai-chat-history');
-    const chatBoxWrapper = document.getElementById('chat-box-wrapper');
-    const liveToolsPanel = document.getElementById('live-tools-panel');
-    const scrollBtn = document.getElementById('scroll-bottom-btn');
-    const mediaPreviewContainer = document.getElementById('media-preview-container');
-    const previewImg = document.getElementById('preview-img');
-    const previewLabel = document.getElementById('preview-label');
-    const removePreviewBtn = document.getElementById('remove-preview-btn');
-    const liveToggleBtn = document.getElementById('btn-live-toggle');
-
-    const liveOrbUI = document.getElementById('live-orb-ui');
-    const golaCamBtn = document.getElementById('gola-cam-btn');
-    const golaScreenBtn = document.getElementById('gola-screen-btn');
-    const golaCloseBtn = document.getElementById('gola-close-btn');
-    const golaMicBtn = document.getElementById('gola-mic-btn');
-
-    const liveCameraContainer = document.getElementById('live-camera-container');
-    const switchCameraBtn = document.getElementById('switch-camera-btn');
-    const closeCameraBtn = document.getElementById('close-camera-btn');
-    const videoElement = document.getElementById('webcam-video');
-
-    const btnGalleryPlus = document.getElementById('btn-gallery-plus');
-    const plusMenu = document.getElementById('plus-popover-menu');
-    const inputFileCamera = document.getElementById('input-file-camera');
-    const inputFileGallery = document.getElementById('input-file-gallery');
-
-    if (inputFileGallery) {
-        inputFileGallery.setAttribute('accept', 'image/*,video/*');
-    }
-
-    let attachedBase64Image = null;
-    let latestBackgroundFrame = null;
-    let backgroundFrameTimer = null;
-    let currentLiveStream = null;
-    let lastUserPrompt = "";
-    let isLiveModeActive = false;
-    let isMicMuted = false;
-    let isAISpeaking = false;
-    let isProcessing = false;
-    let currentFacingMode = "environment";
-    let isCameraVisible = false;
-    let isScreenSharing = false;
-
-    if (btnGalleryPlus && plusMenu) {
-        btnGalleryPlus.addEventListener('click', (e) => {
-            e.stopPropagation();
-            plusMenu.style.display = (plusMenu.style.display === 'flex') ? 'none' : 'flex';
-        });
-        document.addEventListener('click', () => { plusMenu.style.display = 'none'; });
-    }
-
-    const optCamera = document.getElementById('opt-camera');
-    const optGallery = document.getElementById('opt-gallery');
-    const optScreenshare = document.getElementById('opt-screenshare');
-
-    if (optCamera) optCamera.addEventListener('click', () => { if (plusMenu) plusMenu.style.display = 'none'; triggerCamera(); });
-    if (optGallery) optGallery.addEventListener('click', () => { if (plusMenu) plusMenu.style.display = 'none'; if (inputFileGallery) inputFileGallery.click(); });
-    if (optScreenshare) optScreenshare.addEventListener('click', () => { if (plusMenu) plusMenu.style.display = 'none'; triggerScreenShare(); });
-
-    function encodeSourceToSafeBase64(sourceEl, sourceWidth, sourceHeight, mirror = false) {
-        try {
-            const canvas = document.getElementById('capture-canvas');
-            if (!canvas) return null;
-            const ctx = canvas.getContext('2d');
-            const attempts = [
-                { maxDim: 680, quality: 0.74 },
-                { maxDim: 560, quality: 0.68 },
-                { maxDim: 460, quality: 0.62 }
-            ];
-
-            for (const cfg of attempts) {
-                let w = sourceWidth || 640;
-                let h = sourceHeight || 480;
-                if (w > h && w > cfg.maxDim) {
-                    h = Math.round(h * (cfg.maxDim / w));
-                    w = cfg.maxDim;
-                } else if (h > cfg.maxDim) {
-                    w = Math.round(w * (cfg.maxDim / h));
-                    h = cfg.maxDim;
-                }
-                canvas.width = Math.max(1, w);
-                canvas.height = Math.max(1, h);
-                ctx.save();
-                if (mirror) {
-                    ctx.translate(canvas.width, 0);
-                    ctx.scale(-1, 1);
-                }
-                ctx.drawImage(sourceEl, 0, 0, canvas.width, canvas.height);
-                ctx.restore();
-
-                const dataUrl = canvas.toDataURL('image/jpeg', cfg.quality);
-                if (dataUrl && dataUrl.startsWith('data:image/jpeg;base64,') && dataUrl.length > 500 && dataUrl.length < 160000) {
-                    return dataUrl;
-                }
-            }
-            return canvas.toDataURL('image/jpeg', 0.55);
-        } catch (err) {
-            return null;
-        }
-    }
-
-    function compressGalleryImage(dataUrl, callback) {
-        const img = new Image();
-        img.onload = () => {
-            const safeB64 = encodeSourceToSafeBase64(img, img.width, img.height, false);
-            callback(safeB64);
-        };
-        img.onerror = () => callback(null);
-        img.src = dataUrl;
-    }
-
-    function extractFrameFromVideoFile(file, callback) {
-        const tempVideo = document.createElement('video');
-        tempVideo.preload = 'metadata';
-        tempVideo.muted = true;
-        tempVideo.playsInline = true;
-        const objectUrl = URL.createObjectURL(file);
-        tempVideo.src = objectUrl;
-
-        tempVideo.onloadeddata = () => {
-            tempVideo.currentTime = Math.min(1.0, (tempVideo.duration || 2) / 2);
-        };
-        tempVideo.onseeked = () => {
-            const safeB64 = encodeSourceToSafeBase64(tempVideo, tempVideo.videoWidth || 640, tempVideo.videoHeight || 480, false);
-            URL.revokeObjectURL(objectUrl);
-            callback(safeB64);
-        };
-        tempVideo.onerror = () => {
-            URL.revokeObjectURL(objectUrl);
-            callback(null);
-        };
-    }
-
-    function handleFileSelect(file) {
-        if (!file) return;
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                compressGalleryImage(evt.target.result, (compressedDataUrl) => {
-                    if (compressedDataUrl) {
-                        attachedBase64Image = compressedDataUrl;
-                        if (previewImg) {
-                            previewImg.style.display = 'block';
-                            previewImg.src = attachedBase64Image;
-                        }
-                        if (previewLabel) previewLabel.innerText = file.name;
-                        if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'flex';
-                    }
-                });
-            };
-            reader.readAsDataURL(file);
-        } else if (file.type.startsWith('video/')) {
-            if (previewLabel) previewLabel.innerText = "Processing video...";
-            if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'flex';
-            extractFrameFromVideoFile(file, (videoFrameB64) => {
-                if (videoFrameB64) {
-                    attachedBase64Image = videoFrameB64;
-                    if (previewImg) {
-                        previewImg.style.display = 'block';
-                        previewImg.src = attachedBase64Image;
-                    }
-                    if (previewLabel) previewLabel.innerText = "Video: " + file.name;
-                    if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'flex';
-                } else {
-                    if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
-                    showToast("Could not read video frame.", "error");
-                }
-            });
-        } else {
-            attachedBase64Image = null;
-            if (previewImg) previewImg.src = '';
-            if (previewLabel) previewLabel.innerText = "File: " + file.name;
-            if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'flex';
-        }
-    }
-
-    if (inputFileCamera) inputFileCamera.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
-    if (inputFileGallery) inputFileGallery.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
-
-    // =====================================================
-    // BOOSTED & FAST SPEECH ENGINE (HINDI & ENGLISH)
-    // =====================================================
-    let availableVoices = [];
-    function loadVoices() {
-        if ('speechSynthesis' in window) {
-            availableVoices = window.speechSynthesis.getVoices();
-        }
-    }
-    loadVoices();
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
-    function speakText(text, onEndCallback = null) {
-        if (!('speechSynthesis' in window)) {
-            if (onEndCallback) onEndCallback();
-            return;
-        }
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.resume();
-        isAISpeaking = true;
-        try { if (recognition) recognition.stop(); } catch (e) {}
-
-        const cleanText = String(text || "")
-            .replace(/https?:\/\/\S+/g, "")
-            .replace(/[*#_`~>|]/g, "")
-            .replace(/\s+/g, " ")
-            .trim();
-
-        if (!cleanText) {
-            isAISpeaking = false;
-            if (onEndCallback) onEndCallback();
-            return;
-        }
-
-        const hasHindiChars = /[\u0900-\u097F]/.test(cleanText);
-        const isRomanHindi = /\b(hai|kya|main|mera|karta|ho|gaya|kar|raha|hu|hain|bhai|nahi|yeh|woh|kaise|batao|aap|tum)\b/i.test(cleanText);
-        const targetLang = (hasHindiChars || isRomanHindi) ? 'hi-IN' : 'en-IN';
-
-        if (availableVoices.length === 0) loadVoices();
-        const selectedVoice =
-            availableVoices.find(v => (v.lang === targetLang || v.lang.replace('_', '-') === targetLang) && /google|natural|swara|madhur|heera|ravi/i.test(v.name)) ||
-            availableVoices.find(v => v.lang === targetLang || v.lang.replace('_', '-') === targetLang) ||
-            availableVoices.find(v => v.lang.startsWith(targetLang.slice(0, 2))) ||
-            null;
-
-        const chunks = cleanText.match(/[^.!?।|\n]+[.!?।|\n]*/g) || [cleanText];
-        let idx = 0;
-
-        function speakNextChunk() {
-            if (!isAISpeaking || idx >= chunks.length) {
-                isAISpeaking = false;
-                if (onEndCallback) onEndCallback();
-                return;
-            }
-            const part = chunks[idx++].trim();
-            if (!part) {
-                speakNextChunk();
-                return;
-            }
-            const utterance = new SpeechSynthesisUtterance(part);
-            utterance.lang = targetLang;
-            utterance.rate = 1.18;
-            utterance.pitch = 1.04;
-            utterance.volume = 1.0;
-            if (selectedVoice) utterance.voice = selectedVoice;
-
-            utterance.onend = () => speakNextChunk();
-            utterance.onerror = () => {
-                isAISpeaking = false;
-                if (onEndCallback) onEndCallback();
-            };
-            window.speechSynthesis.resume();
-            window.speechSynthesis.speak(utterance);
-        }
-
-        speakNextChunk();
-    }
-
-    function getCurrentVideoFrame() {
-        if (currentLiveStream && videoElement && videoElement.srcObject) {
-            if (videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
-                const shouldMirror = (currentFacingMode === "user" && !isScreenSharing);
-                const frame = encodeSourceToSafeBase64(videoElement, videoElement.videoWidth, videoElement.videoHeight, shouldMirror);
-                if (frame) {
-                    latestBackgroundFrame = frame;
-                    return frame;
-                }
-            }
-        }
-        return latestBackgroundFrame;
-    }
-
-    function startSilentBackgroundFrameLoop() {
-        if (backgroundFrameTimer) clearInterval(backgroundFrameTimer);
-        backgroundFrameTimer = setInterval(() => {
-            if (isCameraVisible && currentLiveStream) {
-                getCurrentVideoFrame();
-            }
-        }, 700);
-    }
-
-    function stopSilentBackgroundFrameLoop() {
-        if (backgroundFrameTimer) {
-            clearInterval(backgroundFrameTimer);
-            backgroundFrameTimer = null;
-        }
-        latestBackgroundFrame = null;
-    }
-
-    let recognition = null;
-    const btnMic = document.getElementById('btn-mic');
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRec();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.onresult = (evt) => {
-            if (isMicMuted) return;
-            const transcript = evt.results[0][0].transcript.trim();
-            if (!transcript) return;
-            if (aiInput) aiInput.value = transcript;
-            if (btnMic) btnMic.style.color = '#ffffff';
-            let currentFrame = attachedBase64Image;
-            if (isCameraVisible) {
-                currentFrame = getCurrentVideoFrame() || attachedBase64Image;
-            }
-            let hideImg = isCameraVisible && !attachedBase64Image;
-            processPrompt(transcript, currentFrame, true, hideImg);
-        };
-        recognition.onerror = () => {
-            if (btnMic) btnMic.style.color = '#ffffff';
-            if (isLiveModeActive && !isMicMuted && !isAISpeaking && !isProcessing) {
-                setTimeout(startLiveVoiceCycle, 500);
-            }
-        };
-        recognition.onend = () => {
-            if (btnMic) btnMic.style.color = '#ffffff';
-            if (isLiveModeActive && !isMicMuted && !isAISpeaking && !isProcessing) {
-                setTimeout(startLiveVoiceCycle, 250);
-            }
-        };
-    }
-
-    function startLiveVoiceCycle() {
-        if (!isLiveModeActive || !recognition || isMicMuted || isAISpeaking || isProcessing) return;
-        try { recognition.start(); } catch (e) {}
-    }
-
-    function stopLiveMode() {
-        isLiveModeActive = false;
-        isAISpeaking = false;
-        isProcessing = false;
-        if (liveToggleBtn) liveToggleBtn.classList.remove('active-live');
-        if (liveOrbUI) liveOrbUI.style.display = 'none';
-        closeCameraUI();
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-        if (recognition) { try { recognition.stop(); } catch (e) {} }
-    }
-
-    function closeCameraUI() {
-        stopSilentBackgroundFrameLoop();
-        if (currentLiveStream) { currentLiveStream.getTracks().forEach(track => track.stop()); currentLiveStream = null; }
-        if (liveCameraContainer) liveCameraContainer.style.display = 'none';
-        isCameraVisible = false;
-        isScreenSharing = false;
-        if (golaCamBtn) golaCamBtn.classList.remove('active-feature');
-        if (golaScreenBtn) golaScreenBtn.classList.remove('active-feature');
-    }
-
-    if (liveToggleBtn) {
-        liveToggleBtn.addEventListener('click', () => {
-            isLiveModeActive = !isLiveModeActive;
-            if (isLiveModeActive) {
-                liveToggleBtn.classList.add('active-live');
-                if (liveOrbUI) liveOrbUI.style.display = 'flex';
-                isMicMuted = false;
-                if (golaMicBtn) golaMicBtn.classList.remove('muted');
-                startLiveVoiceCycle();
-            } else {
-                stopLiveMode();
-            }
-        });
-    }
-
-    if (golaCamBtn) {
-        golaCamBtn.addEventListener('click', () => {
-            if (isCameraVisible && !isScreenSharing) {
-                closeCameraUI();
-            } else {
-                triggerCamera();
-            }
-        });
-    }
-
-    if (golaScreenBtn) {
-        golaScreenBtn.addEventListener('click', () => {
-            if (isScreenSharing) {
-                closeCameraUI();
-            } else {
-                triggerScreenShare();
-            }
-        });
-    }
-
-    if (golaCloseBtn) golaCloseBtn.addEventListener('click', stopLiveMode);
-
-    if (golaMicBtn) {
-        golaMicBtn.addEventListener('click', () => {
-            isMicMuted = !isMicMuted;
-            if (isMicMuted) {
-                golaMicBtn.classList.add('muted');
-                try { if (recognition) recognition.stop(); } catch (e) {}
-            } else {
-                golaMicBtn.classList.remove('muted');
-                startLiveVoiceCycle();
-            }
-        });
-    }
-
-    async function triggerCamera() {
-        try {
-            if (currentLiveStream) currentLiveStream.getTracks().forEach(track => track.stop());
-            currentLiveStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
-            isScreenSharing = false;
-            if (videoElement) {
-                videoElement.srcObject = currentLiveStream;
-                videoElement.style.transform = currentFacingMode === "user" ? "scaleX(-1)" : "scaleX(1)";
-                await videoElement.play();
-            }
-            if (liveCameraContainer) liveCameraContainer.style.display = 'block';
-            if (switchCameraBtn) switchCameraBtn.style.display = 'flex';
-            isCameraVisible = true;
-            if (golaCamBtn) golaCamBtn.classList.add('active-feature');
-            if (golaScreenBtn) golaScreenBtn.classList.remove('active-feature');
-            startSilentBackgroundFrameLoop();
-        } catch (err) {
-            if (inputFileCamera) inputFileCamera.click();
-        }
-    }
-
-    async function triggerScreenShare() {
-        if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-            try {
-                if (currentLiveStream) currentLiveStream.getTracks().forEach(track => track.stop());
-                currentLiveStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                isScreenSharing = true;
-                if (videoElement) {
-                    videoElement.srcObject = currentLiveStream;
-                    videoElement.style.transform = "scaleX(1)";
-                    await videoElement.play();
-                }
-                if (liveCameraContainer) liveCameraContainer.style.display = 'block';
-                if (switchCameraBtn) switchCameraBtn.style.display = 'none';
-                isCameraVisible = true;
-                if (golaScreenBtn) golaScreenBtn.classList.add('active-feature');
-                if (golaCamBtn) golaCamBtn.classList.remove('active-feature');
-                startSilentBackgroundFrameLoop();
-
-                currentLiveStream.getVideoTracks()[0].onended = () => closeCameraUI();
-            } catch (err) {
-                showToast("Screen share cancelled.", "error");
-            }
-        } else {
-            showToast("Screen sharing is not supported on this device.", "error");
-        }
-    }
-
-    if (switchCameraBtn) {
-        switchCameraBtn.addEventListener('click', () => {
-            currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
-            triggerCamera();
-        });
-    }
-    if (closeCameraBtn) closeCameraBtn.addEventListener('click', () => { closeCameraUI(); });
-
-    if (chatHistory && scrollBtn) {
-        chatHistory.addEventListener('scroll', () => {
-            if (chatHistory.scrollTop + chatHistory.clientHeight < chatHistory.scrollHeight - 60) {
-                scrollBtn.style.display = 'flex';
-            } else {
-                scrollBtn.style.display = 'none';
-            }
-        });
-        scrollBtn.addEventListener('click', () => {
-            chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: 'smooth' });
-        });
-    }
-
-    if (removePreviewBtn) {
-        removePreviewBtn.addEventListener('click', () => {
-            attachedBase64Image = null;
-            if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
-        });
-    }
-
-    if (btnMic) {
-        btnMic.addEventListener('click', () => {
-            if (recognition) {
-                btnMic.style.color = '#ff4d4d';
-                try { recognition.start(); } catch (e) {}
-            } else {
-                showToast("Voice input is not supported in this browser.", "error");
-            }
-        });
-    }
-
-    /* ========================================================
-       LIVE AI ENGINE (ZERO EMOJI + STYLED ANALYZING BOX)
-       ======================================================== */
-    function _cleanOutput(rawText) {
-        if (!rawText) return "";
-        return String(rawText)
-            .replace(/<think>[\s\S]*?<\/think>/gi, "")
-            .replace(/<think>[\s\S]*$/gi, "")
-            .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu, "")
-            .replace(/[ \t]{2,}/g, " ")
-            .trim();
-    }
-
-    function _isValidReplyText(txt) {
-        if (!txt || txt.length < 1) return false;
-        const lower = txt.toLowerCase();
-        return !(/^(system error:|error:|http \d{3})/i.test(txt) ||
-            lower.includes('"status":400') ||
-            lower.includes('"status":401') ||
-            lower.includes('"status":403') ||
-            lower.includes('"status":404') ||
-            lower.includes('"status":429') ||
-            lower.includes('"error":') ||
-            lower.includes('unsupported value') ||
-            lower.includes('unsupported parameter') ||
-            lower.startsWith('<!doctype') ||
-            lower.startsWith('<html'));
-    }
-
-    // 2-Line Box UI for Analyzing -> डीप है ये सोच रहा हूं मैं -> अभी बताता हूं मादरचोद
-    function startAnalyzingBoxUI(bubbleEl) {
-        if (!bubbleEl) return null;
-        const textNode = bubbleEl.querySelector('.ai-text-content');
-        if (!textNode) return null;
-
-        const steps = [
-            {
-                title: "Analyzing... अभी बताता हूं मादरचोद",
-                sub: "डीप है ये, सोच रहा हूं मैं... अभी लोड कर रहा हूं भाई..."
-            },
-            {
-                title: "Analyzing Deep... सोच रहा हूं मैं",
-                sub: "अभी लोड कर रहा हूं भाई... अभी बता रहा हूं मादरचोद..."
-            },
-            {
-                title: "अभी बता रहा हूं मादरचोद...",
-                sub: "Analyzing... सीधा सटीक जवाब निकाल रहा हूं भाई..."
-            }
-        ];
-
-        let stepIdx = 0;
-        function renderBox(idx) {
-            const s = steps[idx % steps.length];
-            textNode.innerHTML = `
-                <div style="display:flex;flex-direction:column;gap:5px;">
-                    <div style="font-weight:700;color:#93c5fd;font-size:14.5px;letter-spacing:0.2px;">
-                        ${s.title}
-                    </div>
-                    <div style="font-size:13px;color:rgba(241,245,249,0.82);line-height:1.45;">
-                        ${s.sub}
-                    </div>
-                </div>
-            `;
-        }
-
-        renderBox(0);
-        return setInterval(() => {
-            stepIdx++;
-            renderBox(stepIdx);
-        }, 550);
-    }
-
-    // 1. Direct Google Studio Call
-    async function _callGoogleStudio(apiKey, messages, base64Img = null, timeoutMs = 14000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        try {
-            const sysText = messages[0]?.content || "";
-            const userPrompt = messages[messages.length - 1]?.content || "";
-            const parts = [{ text: typeof userPrompt === "string" ? userPrompt : JSON.stringify(userPrompt) }];
-
-            if (base64Img && base64Img.startsWith("data:image/")) {
-                const mimeMatch = base64Img.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
-                if (mimeMatch) {
-                    parts.push({
-                        inlineData: {
-                            mimeType: mimeMatch[1],
-                            data: mimeMatch[2]
-                        }
-                    });
-                }
-            }
-
-            const payload = {
-                systemInstruction: { parts: [{ text: sysText }] },
-                contents: [{ role: "user", parts: parts }]
-            };
-
-            const endpoint = `${GEMINI_CONFIG.baseURL}/${GEMINI_CONFIG.model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-            const response = await fetch(endpoint, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-                signal: controller.signal
-            });
-
-            clearTimeout(timer);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const data = await response.json();
-            const rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
-            const cleaned = _cleanOutput(rawText);
-            if (_isValidReplyText(cleaned)) return cleaned;
-            throw new Error("Empty Google Studio output");
-        } catch (err) {
-            clearTimeout(timer);
-            throw err;
-        }
-    }
-
-    // 2. Browser-CORS Compatible POST (Supports both JSON & Plain-Text responses without crashing)
-    async function _callBrowserInferencePost(targetUrl, messages, useSimpleHeader = false, timeoutMs = 18000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        try {
-            const headers = useSimpleHeader
-                ? { "Content-Type": "text/plain;charset=UTF-8" }
-                : { "Content-Type": "application/json", "Accept": "application/json" };
-
-            const response = await fetch(targetUrl, {
-                method: "POST",
-                headers: headers,
-                body: JSON.stringify({
-                    model: "openai",
-                    messages: messages,
-                    stream: false
-                }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timer);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const rawText = await response.text();
-            try {
-                const data = JSON.parse(rawText);
-                const msg = _cleanOutput(data.choices?.[0]?.message?.content || data.choices?.[0]?.text || "");
-                if (_isValidReplyText(msg)) return msg;
-            } catch (e) {
-                const cleanedRaw = _cleanOutput(rawText);
-                if (_isValidReplyText(cleanedRaw)) return cleanedRaw;
-            }
-            throw new Error("Invalid POST response");
-        } catch (err) {
-            clearTimeout(timer);
-            throw err;
-        }
-    }
-
-    // 3. Clean GET Stream (Single-line system rule, no newline characters in URL)
-    async function _callBrowserCleanGet(promptText, isHindiOrHinglish, timeoutMs = 18000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        try {
-            const sysRule = isHindiOrHinglish
-                ? "You are Mani AI created by Mani Singh (Money Bagga). Reply naturally and accurately in Hindi or Hinglish without any emojis."
-                : "You are Mani AI created by Mani Singh (Money Bagga). Reply naturally and accurately in English without any emojis.";
-
-            const cleanPrompt = String(promptText || "Hello").replace(/\s+/g, " ").trim().slice(0, 380);
-            const url = `https://text.pollinations.ai/${encodeURIComponent(cleanPrompt)}?model=openai&system=${encodeURIComponent(sysRule)}`;
-
-            const res = await fetch(url, { method: "GET", signal: controller.signal });
-            clearTimeout(timer);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const text = _cleanOutput(await res.text());
-            if (_isValidReplyText(text)) return text;
-            throw new Error("Empty GET response");
-        } catch (err) {
-            clearTimeout(timer);
-            throw err;
-        }
-    }
-
-    async function callAIAPI(promptText, base64Img = null) {
-        if (_isExploitPayload(promptText)) {
-            return "Invalid input format.";
-        }
-
-        const isHindiOrHinglish = /[\u0900-\u097F]/.test(promptText) || /\b(kya|kaise|kese|kab|hua|kon|kaun|bhai|bahi|brother|mani|bagga|tum|aap|batao|hai|ho|naam|mein|main|mera|teri|tera|haan|ha|nahi|badiya|fir|kyu|kyon|kaha)\b/i.test(promptText);
-
-        const systemInstruction = {
-            role: "system",
-            content: [
-                "You are Mani AI, a smart, fast, human-like AI assistant created by Mani Singh (Money Bagga).",
-                "STRICT RULES:",
-                "1. NO EMOJIS: Never use any emojis, emoticons, or decorative symbols anywhere in your answer. Output clean plain text only.",
-                "2. LANGUAGE: If the user writes in Hindi or Hinglish, reply naturally in Hindi (Devanagari) or friendly Hinglish. If the user writes in English, reply in English.",
-                "3. ACCURACY: Answer every question (whether casual chat, general knowledge, coding, or facts) directly, accurately, and completely."
-            ].join("\n")
-        };
-
-        const activeMessages = (base64Img && base64Img.startsWith("data:image/"))
-            ? [
-                systemInstruction,
-                ...conversationHistory.slice(-6),
-                {
-                    role: "user",
-                    content: [
-                        { type: "text", text: promptText },
-                        { type: "image_url", image_url: { url: base64Img } }
-                    ]
-                }
-            ]
-            : [
-                systemInstruction,
-                ...conversationHistory.slice(-10),
-                { role: "user", content: promptText }
-            ];
-
-        const apiKey = await _AES_256_GCM_VAULT.unlockKey();
-
-        // Stage 1: Parallel Race (Google Studio + Browser OpenAI POST)
-        try {
-            const reply = await Promise.any([
-                _callGoogleStudio(apiKey, activeMessages, base64Img, 14000),
-                _callBrowserInferencePost("https://text.pollinations.ai/openai", activeMessages, false, 18000)
-            ]);
-            conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply });
-            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return reply;
-        } catch (stage1Err) {}
-
-        // Stage 2: Simple-Header POST (Bypasses CORS Preflight on Mobile Browsers)
-        try {
-            const reply2 = await _callBrowserInferencePost("https://text.pollinations.ai/", activeMessages, true, 18000);
-            conversationHistory.push({ role: "user", content: promptText });
-            conversationHistory.push({ role: "assistant", content: reply2 });
-            if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-            return reply2;
-        } catch (stage2Err) {}
-
-        // Stage 3: Clean GET Stream
-        const reply3 = await _callBrowserCleanGet(promptText, isHindiOrHinglish, 18000);
-        conversationHistory.push({ role: "user", content: promptText });
-        conversationHistory.push({ role: "assistant", content: reply3 });
-        if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
-        return reply3;
-    }
-
-    function appendMessageBubble(sender, content, imageSrc = null, hideImage = false, isLoadingBubble = false) {
-        if (!chatHistory) return null;
-        if (chatBoxWrapper) { chatBoxWrapper.classList.add('has-messages'); }
-        if (liveToolsPanel) { liveToolsPanel.style.display = 'flex'; }
-
-        const msgWrapper = document.createElement('div');
-        msgWrapper.className = `iphone-glass expo-glass-effect chat-msg-bubble ${sender}`;
-        msgWrapper.style.padding = '18px 22px';
-        msgWrapper.style.maxWidth = '85%';
-        msgWrapper.style.fontSize = '15px';
-        msgWrapper.style.lineHeight = '1.6';
-        msgWrapper.style.borderRadius = '22px';
-        msgWrapper.style.margin = '4px 0';
-
-        if (sender === 'user') {
-            msgWrapper.style.alignSelf = 'flex-end';
-            msgWrapper.style.borderBottomRightRadius = '4px';
-            msgWrapper.style.background = 'linear-gradient(145deg, rgba(59, 130, 246, 0.28), rgba(29, 78, 216, 0.14))';
-            msgWrapper.style.color = '#fff';
-            if (imageSrc && !hideImage) {
-                const imgEl = document.createElement('img');
-                imgEl.src = imageSrc;
-                imgEl.style.maxWidth = '200px';
-                imgEl.style.borderRadius = '12px';
-                imgEl.style.display = 'block';
-                imgEl.style.marginBottom = '10px';
-                msgWrapper.appendChild(imgEl);
-            }
-            const textNode = document.createElement('div');
-            textNode.innerText = content;
-            msgWrapper.appendChild(textNode);
-        } else {
-            msgWrapper.style.alignSelf = 'flex-start';
-            msgWrapper.style.borderBottomLeftRadius = '4px';
-            msgWrapper.style.color = '#f1f5f9';
-            const textNode = document.createElement('div');
-            textNode.className = 'ai-text-content';
-            textNode.style.whiteSpace = 'pre-wrap';
-            textNode.innerText = content;
-            msgWrapper.appendChild(textNode);
-
-            if (!isLoadingBubble) {
-                const actionBar = document.createElement('div');
-                actionBar.className = 'chat-action-bar';
-
-                const btnSpeak = document.createElement('button');
-                btnSpeak.className = 'chat-action-btn';
-                btnSpeak.title = 'Listen';
-                btnSpeak.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
-                btnSpeak.addEventListener('click', () => { speakText(content); });
-
-                const btnCopy = document.createElement('button');
-                btnCopy.className = 'chat-action-btn';
-                btnCopy.title = 'Copy';
-                btnCopy.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-                btnCopy.addEventListener('click', () => {
-                    navigator.clipboard.writeText(content);
-                    showToast("Copied to clipboard!", "success");
-                });
-
-                const btnShare = document.createElement('button');
-                btnShare.className = 'chat-action-btn';
-                btnShare.title = 'Share';
-                btnShare.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>`;
-                btnShare.addEventListener('click', () => {
-                    if (navigator.share) {
-                        navigator.share({ title: "Mani AI Response", text: content });
-                    } else {
-                        navigator.clipboard.writeText(content);
-                        showToast("Response copied to share", "success");
-                    }
-                });
-
-                const btnRefresh = document.createElement('button');
-                btnRefresh.className = 'chat-action-btn';
-                btnRefresh.title = 'Regenerate';
-                btnRefresh.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>`;
-                btnRefresh.addEventListener('click', () => {
-                    if (isProcessing || !lastUserPrompt) return;
-                    if (conversationHistory.length >= 2) {
-                        conversationHistory = conversationHistory.slice(0, -2);
-                    }
-                    let frame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
-                    processPrompt(lastUserPrompt, frame, false, isCameraVisible && !attachedBase64Image);
-                });
-
-                actionBar.appendChild(btnSpeak);
-                actionBar.appendChild(btnCopy);
-                actionBar.appendChild(btnShare);
-                actionBar.appendChild(btnRefresh);
-                msgWrapper.appendChild(actionBar);
-            }
-        }
-        chatHistory.appendChild(msgWrapper);
-        chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: 'smooth' });
-        return msgWrapper;
-    }
-
-    async function processPrompt(promptText, imagePayload, autoSpeak = false, hideImageInChat = false) {
-        if (isProcessing) return;
-        let userText = promptText ? promptText.trim() : "";
-        let finalPrompt = userText;
-
-        if (!finalPrompt && imagePayload) {
-            finalPrompt = "Describe what is shown in this image clearly.";
-            userText = hideImageInChat ? "इसमें क्या दिख रहा है?" : "Analyze image";
-        } else if (!finalPrompt) {
-            return;
-        }
-
-        isProcessing = true;
-        lastUserPrompt = finalPrompt;
-        appendMessageBubble('user', userText, imagePayload, hideImageInChat, false);
-        if (aiInput) aiInput.value = '';
-        attachedBase64Image = null;
-        if (mediaPreviewContainer) mediaPreviewContainer.style.display = 'none';
-
-        const loadingBubble = appendMessageBubble('bot', 'Analyzing...', null, false, true);
-        const loaderTimer = startAnalyzingBoxUI(loadingBubble);
-
-        let aiReply = "";
-        try {
-            aiReply = await callAIAPI(finalPrompt, imagePayload);
-        } catch (err) {
-            aiReply = "नेटवर्क थोड़ा स्लो है भाई, एक बार फिर से सेंड कर।";
-        } finally {
-            if (loaderTimer) clearInterval(loaderTimer);
-            isProcessing = false;
-            if (loadingBubble && loadingBubble.parentNode) {
-                chatHistory.removeChild(loadingBubble);
-            }
-        }
-
-        appendMessageBubble('bot', aiReply, null, false, false);
-
-        if (autoSpeak || isLiveModeActive || isCameraVisible) {
-            speakText(aiReply, () => {
-                if (isLiveModeActive && !isMicMuted) {
-                    setTimeout(startLiveVoiceCycle, 200);
-                }
-            });
-        }
-    }
-
-    const btnClear = document.getElementById('btn-clear');
-    if (btnClear) {
-        btnClear.addEventListener('click', () => {
-            if (chatHistory) chatHistory.innerHTML = '';
-            conversationHistory = [];
-            if (chatBoxWrapper) chatBoxWrapper.classList.remove('has-messages');
-            if (liveToolsPanel) liveToolsPanel.style.display = 'none';
-            if (window.speechSynthesis) window.speechSynthesis.cancel();
-            showToast("Chat history cleared", "success");
-        });
-    }
-
-    if (sendAiBtn) {
-        sendAiBtn.addEventListener('click', () => {
-            let currentFrame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
-            let hideImg = isCameraVisible && !attachedBase64Image;
-            processPrompt(aiInput ? aiInput.value : "", currentFrame, isLiveModeActive || isCameraVisible, hideImg);
-        });
-    }
-
-    if (aiInput) {
-        aiInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                let currentFrame = attachedBase64Image || (isCameraVisible ? getCurrentVideoFrame() : null);
-                let hideImg = isCameraVisible && !attachedBase64Image;
-                processPrompt(aiInput.value, currentFrame, isLiveModeActive || isCameraVisible, hideImg);
-            }
         });
     }
 });
