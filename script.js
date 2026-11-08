@@ -1,7 +1,7 @@
 // =========================================================================
 // PDF — MANI DEVELOPER (manigamer.cv)
-// 100% Hardcoded Client-Side 25-Page Image (JPG / PNG / WebP) to PDF Engine
-// Zero API Keys • 100% User Privacy • Up to 25 Pages at Once • Auto-Download
+// 100% Hardcoded Client-Side 150-Page Image (JPG / PNG / WebP) to PDF Engine
+// Zero API Keys • Up to 150 Pages at Once • Only Button Opens Gallery
 // =========================================================================
 
 function closeMobileNav() {
@@ -10,8 +10,8 @@ function closeMobileNav() {
 }
 
 // =========================================================================
-// HARDCODED BINARY PDF 1.4 BUILDER (SUPPORTS UP TO 25 PAGES AT ONCE)
-// Converts 1 to 25 Canvas JPEG DataURLs into a single multi-page .PDF file
+// HARDCODED BINARY PDF 1.4 BUILDER (SUPPORTS UP TO 150 PAGES AT ONCE)
+// Converts 1 to 150 Canvas JPEG DataURLs into a single multi-page .PDF file
 // =========================================================================
 function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode = 'portrait') {
     const chunks = [];
@@ -59,7 +59,7 @@ function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode 
     offsets[2] = byteOffset;
     pushStr(`2 0 obj\n<< /Type /Pages /Kids [ ${kidsRefs.join(' ')} ] /Count ${numPages} >>\nendobj\n`);
 
-    // 3..N: Page, Content Stream, and JPEG XObject for each uploaded photo (1..25)
+    // 3..N: Page, Content Stream, and JPEG XObject for each uploaded photo (1..150)
     for (let i = 0; i < numPages; i++) {
         const item = imagesList[i];
         const pageObjId = 3 + i * 3;
@@ -147,11 +147,11 @@ function buildHardcodedPdfBlob(imagesList, pageSizeMode = 'a4', orientationMode 
 }
 
 // =========================================================================
-// MAIN DOM CONTROLLER & 25-PAGE PRIVACY WORKFLOW
+// MAIN DOM CONTROLLER & 150-PAGE BATCH WORKFLOW
 // =========================================================================
 document.addEventListener("DOMContentLoaded", () => {
     const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB Per Photo Limit
-    const MAX_PAGES_LIMIT = 25;                  // Up to 25 Pages at Once
+    const MAX_PAGES_LIMIT = 150;                 // Supports 100, 120, up to 150 Pages at Once
     let uploadedImages = [];
     let generatedPdfUrl = null;
     let generatedPdfFilename = "Mani-Developer-Document.pdf";
@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Elements for Multi-Step 25-Page PDF Tool
+    // Elements for Multi-Step 150-Page PDF Tool
     const fileInput = document.getElementById('pdf-file-input');
     const selectImagesBtn = document.getElementById('select-images-btn');
     const uploadDropzone = document.getElementById('upload-dropzone');
@@ -300,7 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    const maxDim = 1750;
+                    const maxDim = 1650;
                     let w = img.naturalWidth || img.width || 800;
                     let h = img.naturalHeight || img.height || 1000;
                     if (w > maxDim || h > maxDim) {
@@ -321,7 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     ctx.fillRect(0, 0, w, h);
                     ctx.drawImage(img, 0, 0, w, h);
 
-                    const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.90);
+                    const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.88);
                     resolve({
                         id: Date.now() + Math.random(),
                         name: file.name,
@@ -338,7 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Render Uploaded Cards with Sequential Numbering Starting from 1 (01..25)
+    // Render Uploaded Cards with Sequential Numbering Starting from 1 (01..150)
     function renderWorkspaceCards() {
         if (!previewGrid) return;
         previewGrid.innerHTML = '';
@@ -422,14 +422,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // ONLY THE RED "CONVERT PDF" BUTTON OPENS THE GALLERY (Touching card does NOT open gallery!)
     if (selectImagesBtn && fileInput) {
         selectImagesBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             e.stopPropagation();
             fileInput.click();
         });
     }
-    if (uploadDropzone && fileInput) {
-        uploadDropzone.addEventListener('click', () => fileInput.click());
+
+    // Drag & Drop support on desktop (without click-to-open on box)
+    if (uploadDropzone) {
         uploadDropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
             uploadDropzone.classList.add('dragover');
@@ -441,15 +444,19 @@ document.addEventListener("DOMContentLoaded", () => {
             handleSelectedFiles(e.dataTransfer.files);
         });
     }
+
     if (addMoreImagesBtn && fileInput) {
-        addMoreImagesBtn.addEventListener('click', () => {
+        addMoreImagesBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             if (uploadedImages.length >= MAX_PAGES_LIMIT) {
-                showToast(`25-Page limit reached! Click Convert PDF now.`, "error");
+                showToast(`${MAX_PAGES_LIMIT}-Page limit reached! Click Convert PDF now.`, "error");
                 return;
             }
             fileInput.click();
         });
     }
+
     if (fileInput) {
         fileInput.addEventListener('change', (e) => handleSelectedFiles(e.target.files));
     }
@@ -512,7 +519,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // 100% Privacy Memory Wipe on Reset/Delete
+    // Memory Wipe on Reset/Delete
     function resetConverter() {
         uploadedImages.forEach(item => { item.jpegDataUrl = ""; });
         uploadedImages = [];
@@ -527,7 +534,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (doneDeleteBtn) {
         doneDeleteBtn.addEventListener('click', () => {
             resetConverter();
-            showToast("100% Private: Session memory wiped!", "success");
+            showToast("Session memory cleared!", "success");
         });
     }
     if (doneCopyLinkBtn) {
