@@ -1,33 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-=====================================================================================
-  [ TOP VERIFIED SEO BADGE — MANIGAMER.CV OFFICIAL FAST-INDEX SITEMAP ]
-  ★ TITLE      : PDF | Online PDF Tools & 150-Page Instant JPG to PDF Converter — Mani Developer
-  ★ BRAND      : PDF — Mani Developer (Powered by Money / Money Bagga)
-  ★ DOMAIN     : https://manigamer.cv/
-  ★ CAPACITY   : 100 to 150 Pages High-Speed Image (JPG / PNG / WebP) to PDF Studio
-  ★ LOCATION   : Haroli, District Una, Himachal Pradesh (177220), India
-  ★ CONTACT    : +91-82196-93695 (24/7 Direct Support)
-  ★ TARGET     : 24-48 Hours Fast Google Search Console Indexing (Priority 1.00)
-=====================================================================================
--->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-                            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd
-                            http://www.google.com/schemas/sitemap-image/1.1
-                            http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd">
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 
-    <!-- ======================================================================== -->
-    <!-- 1. PRIMARY HOMEPAGE & 150-PAGE PDF STUDIO (PRIORITY 1.00)                -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/</loc>
-        <xhtml:link rel="alternate" hreflang="en-in" href="https://manigamer.cv/" />
-        <xhtml:link rel="alternate" hreflang="en" href="https://manigamer.cv/" />
-        <xhtml:link rel="alternate" hreflang="x-default" href="https://manigamer.cv/" />
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
         <changefreq>always</changefreq>
         <priority>1.00</priority>
@@ -45,9 +21,6 @@
         </image:image>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 2. MAIN INDEX ENTRY POINT                                                -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/index.html</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -55,9 +28,6 @@
         <priority>0.98</priority>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 3. CONVERT PDF WORKSPACE (100 TO 150 PAGES BATCH CONVERTER)              -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#create-pdf</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -70,9 +40,6 @@
         </image:image>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 4. WELCOME TO THE PDF WEB — EDITORIAL HERO SECTION                       -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#home</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -80,9 +47,6 @@
         <priority>0.95</priority>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 5. JPG TO PDF & MONEY DIGITAL SOLUTIONS                                  -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#services</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -90,9 +54,6 @@
         <priority>0.92</priority>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 6. DEVELOPER PROFILE — MANI DEVELOPER (MONEY BAGGA)                      -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#gallery</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -106,9 +67,6 @@
         </image:image>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 7. PORTFOLIO & CASE STUDIES (150-PAGE BATCH UTILITIES)                   -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#case-studies</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -116,9 +74,6 @@
         <priority>0.90</priority>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 8. 24/7 DIRECT CONTACT & SUPPORT (+91 82196-93695)                       -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#contact</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -126,9 +81,6 @@
         <priority>0.90</priority>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 9. COMMON QUESTIONS (FAQ — 100 TO 150 PAGE PDF CONVERTER HELP)           -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#faq</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -136,9 +88,6 @@
         <priority>0.88</priority>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 10. PRIVACY POLICY (GOOGLE ADSENSE APPROVAL READY)                       -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#privacy-policy</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -146,9 +95,6 @@
         <priority>0.85</priority>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 11. TERMS OF SERVICE (150-PAGE PDF TOOL LICENSE)                         -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#terms-of-service</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
@@ -156,9 +102,6 @@
         <priority>0.80</priority>
     </url>
 
-    <!-- ======================================================================== -->
-    <!-- 12. OFFICIAL DISCLAIMER                                                  -->
-    <!-- ======================================================================== -->
     <url>
         <loc>https://manigamer.cv/#disclaimer</loc>
         <lastmod>2026-11-08T15:26:00+05:30</lastmod>
